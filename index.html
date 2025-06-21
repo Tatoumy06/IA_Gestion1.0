@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>IA Carrosserie Pelou</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f2f2f2;
+    }
+    .tabs {
+      background: #d6d6d6;
+      display: flex;
+      border-bottom: 2px solid #999;
+    }
+    .tabs div {
+      padding: 10px 20px;
+      border-right: 1px solid #aaa;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .main {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+    .sidebar {
+      width: 200px;
+      background: #eee;
+      padding: 20px;
+      border-left: 1px solid #ccc;
+    }
+    .sidebar button {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: none;
+      background: #ccc;
+      cursor: pointer;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #999;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      background: #d6d6d6;
+      padding: 10px;
+      border-top: 2px solid #999;
+    }
+    .footer button {
+      padding: 10px 20px;
+      border: none;
+      background: #bbb;
+      cursor: pointer;
+    }
+    #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche {
+      display: none;
+    }
+    .client-card {
+      background: white;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+  </style>
+  <script>
+    function afficherOptionsClient() {
+      document.getElementById('client-options').style.display = 'block';
+      document.getElementById('nouveau-client-form').style.display = 'none';
+      document.getElementById('recherche-client-form').style.display = 'none';
+      document.getElementById('resultatsRecherche').style.display = 'none';
+    }
+
+    function afficherFormulaireNouveauClient() {
+      document.getElementById('client-options').style.display = 'none';
+      document.getElementById('nouveau-client-form').style.display = 'block';
+      document.getElementById('recherche-client-form').style.display = 'none';
+      document.getElementById('resultatsRecherche').style.display = 'none';
+    }
+
+    function afficherFormulaireRechercheClient() {
+      document.getElementById('client-options').style.display = 'none';
+      document.getElementById('nouveau-client-form').style.display = 'none';
+      document.getElementById('recherche-client-form').style.display = 'block';
+      document.getElementById('resultatsRecherche').style.display = 'none';
+    }
+
+    function ajouterClient() {
+      const client = {
+        nom: document.getElementById("nom").value,
+        prenom: document.getElementById("prenom").value,
+        telephone: document.getElementById("telephone").value,
+        email: document.getElementById("email").value,
+        adresse: document.getElementById("adresse").value,
+        code_postal: document.getElementById("code_postal").value,
+        ville: document.getElementById("ville").value,
+        pays: document.getElementById("pays").value
+      };
+
+      fetch("http://127.0.0.1:5000/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(client)
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message);
+        afficherResultats([client]);
+      })
+      .catch(error => console.error("Erreur:", error));
+    }
+
+    function rechercherClient() {
+      const nom = document.getElementById("recherche-nom").value;
+      const prenom = document.getElementById("recherche-prenom").value;
+      const code_postal = document.getElementById("recherche-code-postal").value;
+
+      fetch("http://127.0.0.1:5000/api/clients/recherche", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ nom, prenom, code_postal })
+      })
+      .then(response => response.json())
+      .then(data => afficherResultats(data.clients))
+      .catch(error => console.error("Erreur:", error));
+    }
+
+    function afficherResultats(clients) {
+      const container = document.getElementById("resultatsRecherche");
+      container.innerHTML = "";
+
+      if (clients.length === 0) {
+        container.innerHTML = "<p>Aucun client trouvé.</p>";
+        return;
+      }
+
+      clients.forEach(client => {
+        const bloc = document.createElement("div");
+        bloc.className = "client-card";
+        bloc.innerHTML = `
+          <p><strong>Nom :</strong> ${client.nom}</p>
+          <p><strong>Prénom :</strong> ${client.prenom}</p>
+          <p><strong>Téléphone :</strong> ${client.telephone}</p>
+          <p><strong>Email :</strong> ${client.email}</p>
+          <p><strong>Adresse :</strong> ${client.adresse}</p>
+          <p><strong>Code postal :</strong> ${client.code_postal}</p>
+          <p><strong>Ville :</strong> ${client.ville}</p>
+          <p><strong>Pays :</strong> ${client.pays}</p>
+          <button onclick="supprimerClient(${client.id})">Supprimer</button>
+          <button onclick='modifierClient(${JSON.stringify(client)})'>Modifier</button>
+
+        `;
+        container.appendChild(bloc);
+      });
+
+      container.style.display = "block";
+    }
+    function supprimerClient(id) {
+    if (!confirm("Confirmer la suppression de ce client ?")) return;
+    fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
+      method: "DELETE"
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      rechercherClient();
+    })
+    .catch(error => console.error("Erreur:", error));
+  }
+</script>
+</head>
+<body>
+  <div class="tabs">
+    <div onclick="afficherAccueil()">0 - Accueil</div>
+    <div onclick="afficherOptionsClient()">1 - Facture</div>
+    <div onclick="afficherOptionsClient()">2 - Client</div>
+    <div onclick="afficherInterfacePieces()">3 - Pièces</div>
+    <div onclick="afficherInterfaceMaindoeuvre()">4 - Main d'oeuvre</div>
+    <div onclick="afficherInterfaceAnalyse()">5 - Analyse</div>
+    <div onclick="afficherInterfacePhotos()">6 - Photos</div>
+  </div>
+
+    <div class="main">
+    <div class="content">
+      <div id="client-options">
+        <h2>Client</h2>
+        <button onclick="afficherFormulaireNouveauClient()">Nouveau client</button>
+        <button onclick="afficherFormulaireRechercheClient()">Client déjà existant</button>
+      </div>
+
+      <div id="nouveau-client-form">
+        <h2>Ajouter un nouveau client</h2>
+        <div class="form-group"><label for="nom">Nom</label><input type="text" id="nom"></div>
+        <div class="form-group"><label for="prenom">Prénom</label><input type="text" id="prenom"></div>
+        <div class="form-group"><label for="telephone">Téléphone</label><input type="text" id="telephone"></div>
+        <div class="form-group"><label for="email">Email</label><input type="email" id="email"></div>
+        <div class="form-group"><label for="adresse">Adresse</label><input type="text" id="adresse"></div>
+        <div class="form-group"><label for="code_postal">Code Postal</label><input type="text" id="code_postal"></div>
+        <div class="form-group"><label for="ville">Ville</label><input type="text" id="ville"></div>
+        <div class="form-group"><label for="pays">Pays</label><input type="text" id="pays"></div>
+        <button onclick="ajouterClient()">Sauvegarder</button>
+      </div>
+
+      <div id="recherche-client-form">
+        <h2>Rechercher un client</h2>
+        <input type="text" id="recherche-nom" placeholder="Nom">
+        <input type="text" id="recherche-prenom" placeholder="Prénom">
+        <input type="text" id="recherche-code-postal" placeholder="Code postal">
+        <button onclick="rechercherClient()">Rechercher</button>
+      </div>
+
+      <div id="resultatsRecherche"></div>
+    </div>
+
+    <div id="interface-pieces" style="display: none;">
+      <h2>Gestion des pièces</h2>
+      <button onclick="alert('Nouvelle référence à créer')">Nouvelle référence</button>
+      <button onclick="alert('Recherche de référence connue')">Référence connue</button>
+    </div>
+
+    <div class="sidebar">
+      <button>Fermer</button>
+      <button>Notification</button>
+      <button>Contrôle</button>
+      <button>Archive</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button>Impr. tout</button>
+    <button>Impr. client</button>
+  </div>
+
+  <div id="accueil-section" style="display: none;">
+  <h2>Bienvenue dans l'application IA Gestion</h2>
+  <p>Utilisez les onglets pour naviguer entre les différentes sections de gestion.</p>
+</div>
+
+
+  <script>
+  function modifierClient(client) {
+    const form = document.createElement("div");
+    form.className = "client-card";
+    form.innerHTML = `
+      <h3>Modifier le client</h3>
+      <input type="text" id="edit-nom" value="${client.nom}" placeholder="Nom">
+      <input type="text" id="edit-prenom" value="${client.prenom}" placeholder="Prénom">
+      <input type="text" id="edit-telephone" value="${client.telephone}" placeholder="Téléphone">
+      <input type="email" id="edit-email" value="${client.email}" placeholder="Email">
+      <input type="text" id="edit-adresse" value="${client.adresse}" placeholder="Adresse">
+      <input type="text" id="edit-code_postal" value="${client.code_postal}" placeholder="Code postal">
+      <input type="text" id="edit-ville" value="${client.ville}" placeholder="Ville">
+      <input type="text" id="edit-pays" value="${client.pays}" placeholder="Pays">
+      <button onclick="enregistrerModification(${client.id})">Enregistrer</button>
+    `;
+    const container = document.getElementById("resultatsRecherche");
+    container.innerHTML = "";
+    container.appendChild(form);
+  }
+
+  function afficherInterfacePieces() {
+  // Cacher toutes les autres sections
+  document.getElementById('accueil-section').style.display = 'none';
+  document.getElementById('client-options').style.display = 'none';
+  document.getElementById('nouveau-client-form').style.display = 'none';
+  document.getElementById('recherche-client-form').style.display = 'none';
+  document.getElementById('resultat-recherche').style.display = 'none';
+  document.getElementById('modifier-client-form').style.display = 'none';
+
+  // Afficher la section des pièces
+  document.getElementById('interface-pieces').style.display = 'block';
+}
+
+  function afficherAccueil() {
+    document.getElementById('client-options').style.display = 'none';
+    document.getElementById('nouveau-client-form').style.display = 'none';
+    document.getElementById('recherche-client-form').style.display = 'none';
+    document.getElementById('resultat-recherche').style.display = 'none';
+    document.getElementById('modifier-client-form').style.display = 'none';
+    document.getElementById('accueil-section').style.display = 'block';
+  }
+
+  function enregistrerModification(id) {
+    const client = {
+      nom: document.getElementById("edit-nom").value,
+      prenom: document.getElementById("edit-prenom").value,
+      telephone: document.getElementById("edit-telephone").value,
+      email: document.getElementById("edit-email").value,
+      adresse: document.getElementById("edit-adresse").value,
+      code_postal: document.getElementById("edit-code_postal").value,
+      ville: document.getElementById("edit-ville").value,
+      pays: document.getElementById("edit-pays").value
+    };
+
+    fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(client)
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+      rechercherClient(); // recharge les clients
+    })
+    .catch(error => console.error("Erreur:", error));
+  }
+</script>
+
+</body>
+</html>
+
+
+
+
+
