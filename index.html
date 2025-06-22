@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>IA Carrosserie Pelou</title>
+  <title>IA Gestion Entreprise Démo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -70,7 +70,7 @@
       background: #bbb;
       cursor: pointer;
     }
-    #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche {
+     #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche, #interface-pieces, #accueil-section, #nouveau-piece-form, #recherche-piece-form, #resultats-recherche-pieces, #facture-options {
       display: none;
     }
     .client-card {
@@ -80,27 +80,120 @@
       padding: 10px;
     }
   </style>
+</head>
+<body>
+  <div class="tabs">
+    <div onclick="afficherAccueil()">0 - Accueil</div>
+    <div onclick="afficherInterfaceFactures()">1 - Factures</div>
+    <div onclick="afficherOptionsClient()">2 - Clients</div>
+    <div onclick="afficherInterfacePieces()">3 - Pièces</div>
+    <div onclick="afficherInterfaceMaindoeuvre()">4 - Main d'oeuvre</div>
+    <div onclick="afficherInterfaceAnalyse()">5 - Analyse</div>
+    <div onclick="afficherInterfacePhotos()">6 - Photos</div>
+  </div>
+
+    <div class="main">
+    <div class="content">
+      <div id="facture-options">
+        <h2>Facturation</h2>
+        <button onclick="alert('Fonctionnalité à développer : Créer une nouvelle facture')">Nouvelle facture</button>
+        <button onclick="alert('Fonctionnalité à développer : Rechercher une facture')">Recherche de facture</button>
+      </div>
+
+      <div id="client-options">
+        <h2>Client</h2>
+        <button onclick="afficherFormulaireNouveauClient()">Nouveau client</button>
+        <button onclick="afficherFormulaireRechercheClient()">Client déjà existant</button>
+      </div>
+
+      <div id="nouveau-client-form">
+        <h2>Ajouter un nouveau client</h2>
+        <div class="form-group"><label for="nom">Nom</label><input type="text" id="nom"></div>
+        <div class="form-group"><label for="prenom">Prénom</label><input type="text" id="prenom"></div>
+        <div class="form-group"><label for="telephone">Téléphone</label><input type="text" id="telephone"></div>
+        <div class="form-group"><label for="email">Email</label><input type="email" id="email"></div>
+        <div class="form-group"><label for="adresse">Adresse</label><input type="text" id="adresse"></div>
+        <div class="form-group"><label for="code_postal">Code Postal</label><input type="text" id="code_postal"></div>
+        <div class="form-group"><label for="ville">Ville</label><input type="text" id="ville"></div>
+        <div class="form-group"><label for="pays">Pays</label><input type="text" id="pays"></div>
+        <button onclick="ajouterClient()">Sauvegarder</button>
+      </div>
+
+      <div id="recherche-client-form">
+        <h2>Rechercher un client</h2>
+        <input type="text" id="recherche-nom" placeholder="Nom">
+        <input type="text" id="recherche-prenom" placeholder="Prénom">
+        <input type="text" id="recherche-code-postal" placeholder="Code postal">
+        <button onclick="rechercherClient()">Rechercher</button>
+      </div>
+
+      <div id="resultatsRecherche"></div>
+
+      <div id="interface-pieces">
+        <h2>Gestion des pièces</h2>
+        <button onclick="afficherFormulaireNouvellePiece()">Nouvelle référence</button>
+        <button onclick="afficherFormulaireRecherchePiece()">Référence connue</button>
+      </div>
+
+      <div id="nouveau-piece-form">
+        <h2>Ajouter une nouvelle pièce</h2>
+        <div class="form-group"><label for="piece-designation">Désignation</label><input type="text" id="piece-designation"></div>
+        <div class="form-group"><label for="piece-ref">Réf.</label><input type="text" id="piece-ref"></div>
+        <div class="form-group"><label for="piece-prix-achat">Prix d'achat unitaire HT</label><input type="number" id="piece-prix-achat" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label for="piece-prix-vente">Prix de vente HT</label><input type="number" id="piece-prix-vente" step="0.01" placeholder="0.00"></div>
+        <button onclick="ajouterPiece()">Sauvegarder</button>
+      </div>
+
+      <div id="recherche-piece-form">
+        <h2>Rechercher une pièce</h2>
+        <input type="text" id="recherche-piece-designation" placeholder="Désignation">
+        <input type="text" id="recherche-piece-ref" placeholder="Référence">
+        <button onclick="rechercherPiece()">Rechercher</button>
+      </div>
+
+      <div id="resultats-recherche-pieces"></div>
+
+      <div id="accueil-section">
+        <h2>Bienvenue dans l'application IA Gestion</h2>
+        <p>Utilisez les onglets pour naviguer entre les différentes sections de gestion.</p>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <button>Fermer</button>
+      <button>Notification</button>
+      <button>Contrôle</button>
+      <button>Archive</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button>Impr. tout</button>
+    <button>Impr. client</button>
+  </div>
+
   <script>
-    function afficherOptionsClient() {
-      document.getElementById('client-options').style.display = 'block';
-      document.getElementById('nouveau-client-form').style.display = 'none';
-      document.getElementById('recherche-client-form').style.display = 'none';
-      document.getElementById('resultatsRecherche').style.display = 'none';
+    function hideAllPanels() {
+        const panelIds = [
+            'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces', 'facture-options',
+            'recherche-client-form', 'resultatsRecherche', 'interface-pieces'
+        ];
+        panelIds.forEach(id => {
+            const panel = document.getElementById(id);
+            if (panel) panel.style.display = 'none';
+        });
     }
 
-    function afficherFormulaireNouveauClient() {
-      document.getElementById('client-options').style.display = 'none';
-      document.getElementById('nouveau-client-form').style.display = 'block';
-      document.getElementById('recherche-client-form').style.display = 'none';
-      document.getElementById('resultatsRecherche').style.display = 'none';
+    function afficherInterfaceFactures() {
+      hideAllPanels();
+      document.getElementById('facture-options').style.display = 'block';
     }
 
-    function afficherFormulaireRechercheClient() {
-      document.getElementById('client-options').style.display = 'none';
-      document.getElementById('nouveau-client-form').style.display = 'none';
-      document.getElementById('recherche-client-form').style.display = 'block';
-      document.getElementById('resultatsRecherche').style.display = 'none';
-    }
+    function afficherOptionsClient() { hideAllPanels(); document.getElementById('client-options').style.display = 'block'; }
+    function afficherFormulaireNouveauClient() { hideAllPanels(); document.getElementById('nouveau-client-form').style.display = 'block'; }
+    function afficherFormulaireRechercheClient() { hideAllPanels(); document.getElementById('recherche-client-form').style.display = 'block'; }
+    function afficherFormulaireNouvellePiece() { hideAllPanels(); document.getElementById('nouveau-piece-form').style.display = 'block';  }
+    function afficherFormulaireRecherchePiece() { hideAllPanels(); document.getElementById('recherche-piece-form').style.display = 'block'; document.getElementById('resultats-recherche-pieces').innerHTML = ''; }
 
     function ajouterClient() {
       const client = {
@@ -146,6 +239,44 @@
       .catch(error => console.error("Erreur:", error));
     }
 
+    function rechercherPiece() {
+      const designation = document.getElementById('recherche-piece-designation').value;
+      const ref = document.getElementById('recherche-piece-ref').value;
+
+      fetch("http://127.0.0.1:5000/api/pieces/recherche", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ designation, ref })
+      })
+      .then(response => response.json())
+      .then(data => afficherResultatsPieces(data.pieces))
+      .catch(error => console.error("Erreur lors de la recherche de pièces:", error));
+    }
+
+    function afficherResultatsPieces(pieces) {
+      const container = document.getElementById("resultats-recherche-pieces");
+      container.innerHTML = ""; // Vider les anciens résultats
+      hideAllPanels(); // Cacher les autres panneaux
+      document.getElementById('recherche-piece-form').style.display = 'block'; // Garder le formulaire de recherche visible
+
+      if (!pieces || pieces.length === 0) {
+          container.innerHTML = "<p>Aucune pièce trouvée.</p>";
+      } else {
+          pieces.forEach(piece => {
+              const bloc = document.createElement("div");
+              bloc.className = "client-card"; // On réutilise le même style
+              bloc.innerHTML = `
+                  <p><strong>Désignation :</strong> ${piece.designation}</p>
+                  <p><strong>Référence :</strong> ${piece.ref || 'N/A'}</p>
+                  <p><strong>Prix Achat HT :</strong> ${piece.prix_achat !== null ? piece.prix_achat.toFixed(2) + ' €' : 'N/A'}</p>
+                  <p><strong>Prix Vente HT :</strong> ${piece.prix_vente.toFixed(2)} €</p>
+              `;
+              container.appendChild(bloc);
+          });
+      }
+      container.style.display = "block";
+    }
+
     function afficherResultats(clients) {
       const container = document.getElementById("resultatsRecherche");
       container.innerHTML = "";
@@ -188,78 +319,8 @@
     })
     .catch(error => console.error("Erreur:", error));
   }
-</script>
-</head>
-<body>
-  <div class="tabs">
-    <div onclick="afficherAccueil()">0 - Accueil</div>
-    <div onclick="afficherOptionsClient()">1 - Facture</div>
-    <div onclick="afficherOptionsClient()">2 - Client</div>
-    <div onclick="afficherInterfacePieces()">3 - Pièces</div>
-    <div onclick="afficherInterfaceMaindoeuvre()">4 - Main d'oeuvre</div>
-    <div onclick="afficherInterfaceAnalyse()">5 - Analyse</div>
-    <div onclick="afficherInterfacePhotos()">6 - Photos</div>
-  </div>
 
-    <div class="main">
-    <div class="content">
-      <div id="client-options">
-        <h2>Client</h2>
-        <button onclick="afficherFormulaireNouveauClient()">Nouveau client</button>
-        <button onclick="afficherFormulaireRechercheClient()">Client déjà existant</button>
-      </div>
-
-      <div id="nouveau-client-form">
-        <h2>Ajouter un nouveau client</h2>
-        <div class="form-group"><label for="nom">Nom</label><input type="text" id="nom"></div>
-        <div class="form-group"><label for="prenom">Prénom</label><input type="text" id="prenom"></div>
-        <div class="form-group"><label for="telephone">Téléphone</label><input type="text" id="telephone"></div>
-        <div class="form-group"><label for="email">Email</label><input type="email" id="email"></div>
-        <div class="form-group"><label for="adresse">Adresse</label><input type="text" id="adresse"></div>
-        <div class="form-group"><label for="code_postal">Code Postal</label><input type="text" id="code_postal"></div>
-        <div class="form-group"><label for="ville">Ville</label><input type="text" id="ville"></div>
-        <div class="form-group"><label for="pays">Pays</label><input type="text" id="pays"></div>
-        <button onclick="ajouterClient()">Sauvegarder</button>
-      </div>
-
-      <div id="recherche-client-form">
-        <h2>Rechercher un client</h2>
-        <input type="text" id="recherche-nom" placeholder="Nom">
-        <input type="text" id="recherche-prenom" placeholder="Prénom">
-        <input type="text" id="recherche-code-postal" placeholder="Code postal">
-        <button onclick="rechercherClient()">Rechercher</button>
-      </div>
-
-      <div id="resultatsRecherche"></div>
-    </div>
-
-    <div id="interface-pieces" style="display: none;">
-      <h2>Gestion des pièces</h2>
-      <button onclick="alert('Nouvelle référence à créer')">Nouvelle référence</button>
-      <button onclick="alert('Recherche de référence connue')">Référence connue</button>
-    </div>
-
-    <div class="sidebar">
-      <button>Fermer</button>
-      <button>Notification</button>
-      <button>Contrôle</button>
-      <button>Archive</button>
-    </div>
-  </div>
-
-  <div class="footer">
-    <button>Impr. tout</button>
-    <button>Impr. client</button>
-  </div>
-
-  <div id="accueil-section" style="display: none;">
-  <h2>Bienvenue dans l'application IA Gestion</h2>
-  <p>Utilisez les onglets pour naviguer entre les différentes sections de gestion.</p>
-</div>
-
-
-  <script>
-  function modifierClient(client) {
+    function modifierClient(client) {
     const form = document.createElement("div");
     form.className = "client-card";
     form.innerHTML = `
@@ -277,31 +338,59 @@
     const container = document.getElementById("resultatsRecherche");
     container.innerHTML = "";
     container.appendChild(form);
+
   }
-
-  function afficherInterfacePieces() {
-  // Cacher toutes les autres sections
-  document.getElementById('accueil-section').style.display = 'none';
-  document.getElementById('client-options').style.display = 'none';
-  document.getElementById('nouveau-client-form').style.display = 'none';
-  document.getElementById('recherche-client-form').style.display = 'none';
-  document.getElementById('resultat-recherche').style.display = 'none';
-  document.getElementById('modifier-client-form').style.display = 'none';
-
-  // Afficher la section des pièces
-  document.getElementById('interface-pieces').style.display = 'block';
+    function testerBackendPieces() {
+     fetch("http://127.0.0.1:5000/api/pieces")
+    .then(response => response.json())
+    .then(data => alert("Réponse backend : " + data.message))
+    .catch(error => alert("Erreur de connexion au backend : " + error));
 }
 
-  function afficherAccueil() {
-    document.getElementById('client-options').style.display = 'none';
-    document.getElementById('nouveau-client-form').style.display = 'none';
-    document.getElementById('recherche-client-form').style.display = 'none';
-    document.getElementById('resultat-recherche').style.display = 'none';
-    document.getElementById('modifier-client-form').style.display = 'none';
-    document.getElementById('accueil-section').style.display = 'block';
-  }
+    // --- Fonctions de navigation entre les onglets ---
 
-  function enregistrerModification(id) {
+    function afficherInterfacePieces(){
+      hideAllPanels();
+      document.getElementById('interface-pieces').style.display = 'block';
+    }
+
+    function afficherAccueil() {
+      hideAllPanels();
+      document.getElementById('accueil-section').style.display = 'block';
+    }
+
+    // Fonctions vides pour éviter les erreurs sur les onglets non implémentés
+    function afficherInterfaceMaindoeuvre() { alert("Section 'Main d\'oeuvre' non implémentée."); }
+    function afficherInterfaceAnalyse() { alert("Section 'Analyse' non implémentée."); }
+    function afficherInterfacePhotos() { alert("Section 'Photos' non implémentée."); }
+
+    // --- Fonctions de gestion des données ---
+
+    function ajouterPiece() {
+      const piece = {
+        designation: document.getElementById('piece-designation').value,
+        ref: document.getElementById('piece-ref').value, // "ref" est un bon nom de clé
+        prix_achat: document.getElementById('piece-prix-achat').value, // J'utilise prix_achat pour être cohérent avec le style Python
+        prix_vente: document.getElementById('piece-prix-vente').value  // Idem pour prix_vente
+      };
+
+      fetch("http://127.0.0.1:5000/api/pieces", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(piece)
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message || "Pièce ajoutée avec succès !");
+        document.getElementById('nouveau-piece-form').reset(); // Optionnel : vider le formulaire
+        afficherInterfacePieces(); // Revenir à l'écran principal des pièces
+      })
+      .catch(error => console.error("Erreur lors de l'ajout de la pièce:", error));
+    }
+
+    function enregistrerModification(id) {
     const client = {
       nom: document.getElementById("edit-nom").value,
       prenom: document.getElementById("edit-prenom").value,
@@ -327,12 +416,10 @@
     })
     .catch(error => console.error("Erreur:", error));
   }
+
+  // Afficher l'accueil au chargement de la page
+  window.onload = afficherAccueil;
 </script>
 
 </body>
 </html>
-
-
-
-
-
