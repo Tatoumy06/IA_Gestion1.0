@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture {{ facture.numero_facture }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+        body {
+            font-family: 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
+            color: #333;
+            font-size: 12px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+        .header .company-details {
+            text-align: left;
+        }
+        .header .invoice-details {
+            text-align: right;
+        }
+        .client-info {
+            margin-bottom: 40px;
+            padding: 15px;
+            border: 1px solid #eee;
+            background-color: #f9f9f9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .totals {
+            width: 40%;
+            margin-left: 60%;
+            border: 1px solid #ccc;
+        }
+        .totals td {
+            border: none;
+        }
+        .totals .label {
+            font-weight: bold;
+        }
+        .totals .final-total {
+            font-weight: bold;
+            font-size: 1.2em;
+            background-color: #f2f2f2;
+        }
+        .footer {
+            position: fixed;
+            bottom: -1cm;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 10px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-details">
+            <h1>VOTRE ENTREPRISE</h1>
+            <p>Votre Adresse<br>Votre Ville, Code Postal<br>Votre Téléphone</p>
+        </div>
+        <div class="invoice-details">
+            <h2>FACTURE</h2>
+            <p><strong>N° :</strong> {{ facture.numero_facture }}</p>
+            <p><strong>Date :</strong> {{ facture.date_creation.strftime('%d/%m/%Y') }}</p>
+        </div>
+    </div>
+
+    <div class="client-info">
+        <strong>Facturé à :</strong><br>
+        {{ facture.client.nom }} {{ facture.client.prenom or '' }}<br>
+        {{ facture.client.adresse or '' }}<br>
+        {{ facture.client.code_postal or '' }} {{ facture.client.ville or '' }}
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Description</th><th>Quantité</th><th>Prix U. HT (€)</th><th>Total HT (€)</th></tr>
+        </thead>
+        <tbody>
+            {% for ligne in facture.lignes %}
+            <tr><td>{{ ligne.description }}</td><td>{{ ligne.quantite }}</td><td>{{ "%.2f"|format(ligne.prix_unitaire_ht) }}</td><td>{{ "%.2f"|format(ligne.quantite * ligne.prix_unitaire_ht) }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="totals">
+        <tr><td class="label">Total HT</td><td style="text-align:right;">{{ "%.2f"|format(facture.total_ht) }} €</td></tr>
+        <tr><td class="label">TVA (20%)</td><td style="text-align:right;">{{ "%.2f"|format(facture.total_ht * 0.20) }} €</td></tr>
+        <tr class="final-total"><td class="label">TOTAL TTC</td><td style="text-align:right;">{{ "%.2f"|format(facture.total_ttc) }} €</td></tr>
+    </table>
+
+    {% if facture.informations_complementaires %}
+    <div class="notes">
+        <strong>Notes :</strong>
+        <p>{{ facture.informations_complementaires|replace('\n', '<br>')|safe }}</p>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Merci de votre confiance.
+    </div>
+</body>
+</html>

@@ -70,7 +70,7 @@
       background: #bbb;
       cursor: pointer;
     }
-     #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche, #interface-pieces, #accueil-section, #nouveau-piece-form, #recherche-piece-form, #resultats-recherche-pieces, #facture-options {
+     #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche, #interface-pieces, #accueil-section, #nouveau-piece-form, #recherche-piece-form, #resultats-recherche-pieces, #facture-options, #nouvelle-facture-form, #interface-maindoeuvre, #nouveau-maindoeuvre-form, #recherche-maindoeuvre-form, #resultats-recherche-maindoeuvre {
       display: none;
     }
     .client-card {
@@ -79,6 +79,86 @@
       margin-bottom: 10px;
       padding: 10px;
     }
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 5px;
+        width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    #resultats-recherche-piece-facture .resultat-piece { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+    #resultats-recherche-piece-facture .resultat-piece:hover { background-color: #f0f0f0; }
+    #nouvelle-facture-form {
+        background: white;
+        padding: 20px;
+        border: 1px solid #ddd;
+    }
+    .facture-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .facture-client-section, .facture-lignes-section, .facture-notes-section, .facture-totaux-section, .facture-actions {
+        margin-bottom: 20px;
+    }
+    #facture-lignes-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+    }
+    #facture-lignes-table th, #facture-lignes-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    #facture-lignes-table th {
+        background-color: #f2f2f2;
+    }
+    .facture-totaux-section {
+        width: 300px;
+        margin-left: auto;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background: #f9f9f9;
+    }
+    .total-ligne {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+    .total-final {
+        font-weight: bold;
+        font-size: 1.2em;
+        border-top: 1px solid #999;
+        padding-top: 5px;
+    }
+    #facture-resultats-recherche-client .resultat-client { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+    #facture-resultats-recherche-client .resultat-client:hover { background-color: #f0f0f0; }
+    .facture-search-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .facture-search-container input {
+        flex-grow: 1;
+    }
+    #facture-infos-complementaires { width: 100%; padding: 6px; border: 1px solid #999; }
   </style>
 </head>
 <body>
@@ -96,8 +176,81 @@
     <div class="content">
       <div id="facture-options">
         <h2>Facturation</h2>
-        <button onclick="alert('Fonctionnalité à développer : Créer une nouvelle facture')">Nouvelle facture</button>
-        <button onclick="alert('Fonctionnalité à développer : Rechercher une facture')">Recherche de facture</button>
+        <button onclick="afficherFormulaireNouvelleFacture()">Nouvelle facture</button>
+        <button onclick="afficherFormulaireRechercheFacture()">Recherche de facture</button>
+      </div>
+
+      <!-- NOUVEAUX BLOCS POUR LA RECHERCHE DE FACTURE -->
+      <div id="recherche-facture-form" style="display: none;">
+        <h2>Rechercher une facture</h2>
+        <div class="form-group">
+            <input type="text" id="recherche-facture-input" placeholder="Entrez un N° de facture, un nom de client...">
+            <button onclick="rechercherFacture()">Rechercher</button>
+        </div>
+      </div>
+      <div id="resultats-recherche-factures"></div>
+
+      <!-- MODAL/PANEL de recherche de CLIENT pour la facture -->
+      <div id="recherche-client-facture-panel" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3>Résultats de la recherche client</h3>
+              <div id="resultats-recherche-client-facture"></div>
+              <button onclick="fermerRechercheClientFacture()">Fermer</button>
+          </div>
+      </div>
+
+      <!-- MODAL/PANEL de recherche de pièce pour la facture -->
+      <div id="recherche-piece-facture-panel" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3>Rechercher et ajouter une pièce</h3>
+              <input type="text" id="recherche-piece-facture-input" onkeyup="rechercherPiecePourFacture()" placeholder="Rechercher par désignation ou référence...">
+              <div id="resultats-recherche-piece-facture"></div>
+              <button onclick="fermerRecherchePieceFacture()">Fermer</button>
+          </div>
+      </div>
+
+      <div id="nouvelle-facture-form">
+          <div class="facture-header">
+              <h2>Nouvelle Facture N° <span id="facture-numero"></span></h2>
+              <div class="facture-date">Date: <span id="facture-date"></span></div>
+          </div>
+
+          <div class="facture-client-section">
+              <h3>Client</h3>
+              <div id="facture-client-details" class="client-card" style="display: none;"></div>
+              <div id="facture-client-recherche-container">
+                  <div class="facture-search-container">
+                      <input type="text" id="facture-recherche-client" placeholder="Rechercher un client par nom...">
+                      <button onclick="rechercherClientPourFacture()">Rechercher</button>
+                  </div>
+              </div>
+          </div>
+
+          <div class="facture-lignes-section">
+              <h3>Détails de la facture</h3>
+              <table id="facture-lignes-table">
+                  <thead>
+                      <tr><th>Description</th><th>Quantité</th><th>Prix U. HT</th><th>Total HT</th><th>Action</th></tr>
+                  </thead>
+                  <tbody></tbody>
+              </table>
+              <button onclick="ajouterLignePiece()">Ajouter une pièce</button>
+              <button onclick="ajouterLigneMainDoeuvre()">Ajouter Main d'oeuvre</button>
+          </div>
+
+          <div class="facture-notes-section">
+              <h3>Informations complémentaires</h3>
+              <textarea id="facture-infos-complementaires" rows="4"></textarea>
+          </div>
+
+          <div class="facture-totaux-section">
+              <div class="total-ligne"><span>Total HT :</span> <span id="facture-total-ht">0.00</span> €</div>
+              <div class="total-ligne"><span>TVA (20%) :</span> <span id="facture-tva">0.00</span> €</div>
+              <div class="total-ligne total-final"><span>TOTAL TTC :</span> <span id="facture-total-ttc">0.00</span> €</div>
+          </div>
+
+          <div class="facture-actions" id="facture-actions-initiales"><button onclick="sauvegarderFacture()">Sauvegarder la Facture</button></div>
+          <div class="facture-actions" id="facture-actions-post-sauvegarde" style="display:none;"><button id="btn-imprimer-pdf">Imprimer en PDF</button></div>
       </div>
 
       <div id="client-options">
@@ -153,6 +306,28 @@
 
       <div id="resultats-recherche-pieces"></div>
 
+      <!-- NOUVEAU: Interface Main d'oeuvre -->
+      <div id="interface-maindoeuvre">
+        <h2>Gestion de la main d'oeuvre</h2>
+        <button onclick="afficherFormulaireNouvelleMainDoeuvre()">Nouveau type</button>
+        <button onclick="afficherFormulaireRechercheMainDoeuvre()">Rechercher un type</button>
+      </div>
+
+      <div id="nouveau-maindoeuvre-form">
+        <h2>Ajouter un type de main d'oeuvre</h2>
+        <div class="form-group"><label for="maindoeuvre-description">Description</label><input type="text" id="maindoeuvre-description"></div>
+        <div class="form-group"><label for="maindoeuvre-taux-horaire">Taux horaire HT</label><input type="number" id="maindoeuvre-taux-horaire" step="0.01" placeholder="0.00"></div>
+        <button onclick="ajouterMainDoeuvre()">Sauvegarder</button>
+      </div>
+
+      <div id="recherche-maindoeuvre-form">
+        <h2>Rechercher un type de main d'oeuvre</h2>
+        <input type="text" id="recherche-maindoeuvre-description" placeholder="Description">
+        <button onclick="rechercherMainDoeuvre()">Rechercher</button>
+      </div>
+
+      <div id="resultats-recherche-maindoeuvre"></div>
+
       <div id="accueil-section">
         <h2>Bienvenue dans l'application IA Gestion</h2>
         <p>Utilisez les onglets pour naviguer entre les différentes sections de gestion.</p>
@@ -175,7 +350,9 @@
   <script>
     function hideAllPanels() {
         const panelIds = [
-            'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces', 'facture-options',
+            'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces',
+            'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre', 
+            'nouveau-maindoeuvre-form', 'recherche-maindoeuvre-form', 'resultats-recherche-maindoeuvre',
             'recherche-client-form', 'resultatsRecherche', 'interface-pieces'
         ];
         panelIds.forEach(id => {
@@ -184,9 +361,288 @@
         });
     }
 
+    // --- Logique de la nouvelle facture ---
+    let factureActuelle = { clientId: null, lignes: [], tvaTaux: 0.20 };
+
+    function afficherFormulaireNouvelleFacture() {
+        hideAllPanels();
+        document.getElementById('nouvelle-facture-form').style.display = 'block';
+
+        // Réinitialiser l'état de la facture
+        factureActuelle = { clientId: null, lignes: [], tvaTaux: 0.20 };
+        document.getElementById('facture-client-details').style.display = 'none';
+        document.getElementById('facture-client-recherche-container').style.display = 'block';
+        document.getElementById('facture-recherche-client').value = '';
+        document.getElementById('facture-lignes-table').getElementsByTagName('tbody')[0].innerHTML = '';
+        document.getElementById('facture-infos-complementaires').value = '';
+
+        // Générer un numéro de facture et la date
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        document.getElementById('facture-numero').innerText = `${year}${month}-${now.getTime().toString().slice(-4)}`;
+        document.getElementById('facture-date').innerText = `${day}/${month}/${year}`;
+        calculerTotaux();
+    }
+
+    function rechercherClientPourFacture() {
+        const searchTerm = document.getElementById('facture-recherche-client').value;
+        if (searchTerm.length < 2) {
+            alert("Veuillez entrer au moins 2 caractères pour rechercher.");
+            return;
+        }
+
+        const resultsContainer = document.getElementById('resultats-recherche-client-facture');
+
+        fetch(`http://127.0.0.1:5000/api/clients/search?q=${searchTerm}`)
+            .then(response => response.json())
+            .then(clients => {
+                resultsContainer.innerHTML = '';
+                if (clients.length === 0) {
+                    resultsContainer.innerHTML = '<p>Aucun client trouvé.</p>';
+                } else {
+                    clients.forEach(client => {
+                        const bloc = document.createElement("div");
+                        bloc.className = "client-card"; // On réutilise le style de la fiche client
+                        bloc.innerHTML = `
+                          <p><strong>Nom :</strong> ${client.nom} ${client.prenom || ''}</p>
+                          <p><strong>Adresse :</strong> ${client.adresse || 'N/A'}</p>
+                          <p><strong>Ville :</strong> ${client.code_postal || ''} ${client.ville || ''}</p>
+                          <p><strong>Téléphone :</strong> ${client.telephone || 'N/A'}</p>
+                        `;
+                        const selectButton = document.createElement('button');
+                        selectButton.innerText = 'Sélectionner ce client';
+                        selectButton.onclick = () => selectionnerClientPourFacture(client);
+                        bloc.appendChild(selectButton);
+                        resultsContainer.appendChild(bloc);
+                    });
+                }
+                // Afficher la modale
+                document.getElementById('recherche-client-facture-panel').style.display = 'flex';
+            }).catch(error => console.error("Erreur de recherche client:", error));
+    }
+
+    function selectionnerClientPourFacture(client) {
+        factureActuelle.clientId = client.id;
+        const detailsContainer = document.getElementById('facture-client-details');
+        detailsContainer.innerHTML = `
+            <strong>${client.nom} ${client.prenom || ''}</strong><br>
+            ${client.adresse || ''}<br>
+            ${client.code_postal || ''} ${client.ville || ''}<br>
+            Tél: ${client.telephone || 'N/A'}
+        `;
+        detailsContainer.style.display = 'block';
+        document.getElementById('facture-recherche-client').value = '';
+        document.getElementById('facture-client-recherche-container').style.display = 'none';
+
+        // Fermer la modale de recherche
+        fermerRechercheClientFacture();
+    }
+
+    function fermerRechercheClientFacture() {
+        document.getElementById('recherche-client-facture-panel').style.display = 'none';
+    }
+
+    function ajouterLigne(description, quantite, prix_unitaire_ht, piece_id = null) {
+        // Ajoute la ligne à l'état de la facture actuelle
+        factureActuelle.lignes.push({ id: Date.now(), description, quantite, prix_unitaire_ht, piece_id });
+        // Met à jour l'affichage
+        redessinerLignesFacture();
+    }
+
+    function redessinerLignesFacture() {
+        const tbody = document.getElementById('facture-lignes-table').getElementsByTagName('tbody')[0];
+        tbody.innerHTML = '';
+        factureActuelle.lignes.forEach(ligne => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${ligne.description}</td><td>${ligne.quantite}</td>
+                <td>${ligne.prix_unitaire_ht.toFixed(2)}</td><td>${(ligne.quantite * ligne.prix_unitaire_ht).toFixed(2)}</td>
+                <td><button onclick="supprimerLigneFacture(${ligne.id})">X</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        calculerTotaux();
+    }
+
+    function supprimerLigneFacture(ligneId) {
+        factureActuelle.lignes = factureActuelle.lignes.filter(l => l.id !== ligneId);
+        redessinerLignesFacture();
+    }
+
+    function calculerTotaux() {
+        const totalHT = factureActuelle.lignes.reduce((sum, l) => sum + (l.quantite * l.prix_unitaire_ht), 0);
+        const tva = totalHT * factureActuelle.tvaTaux;
+        const totalTTC = totalHT + tva;
+        document.getElementById('facture-total-ht').innerText = totalHT.toFixed(2);
+        document.getElementById('facture-tva').innerText = tva.toFixed(2);
+        document.getElementById('facture-total-ttc').innerText = totalTTC.toFixed(2);
+    }
+
+    function ajouterLignePiece() {
+        // Ouvre le panneau de recherche de pièce
+        document.getElementById('recherche-piece-facture-panel').style.display = 'flex';
+        document.getElementById('recherche-piece-facture-input').focus();
+    }
+
+    function fermerRecherchePieceFacture() {
+        document.getElementById('recherche-piece-facture-panel').style.display = 'none';
+        document.getElementById('recherche-piece-facture-input').value = '';
+        document.getElementById('resultats-recherche-piece-facture').innerHTML = '';
+    }
+
+    function rechercherPiecePourFacture() {
+        const searchTerm = document.getElementById('recherche-piece-facture-input').value;
+        const resultsContainer = document.getElementById('resultats-recherche-piece-facture');
+        if (searchTerm.length < 2) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+
+        fetch(`http://127.0.0.1:5000/api/pieces/search?q=${searchTerm}`)
+            .then(response => response.json())
+            .then(pieces => {
+                resultsContainer.innerHTML = '';
+                pieces.forEach(piece => {
+                    const div = document.createElement('div');
+                    div.className = 'resultat-piece';
+                    div.innerHTML = `
+                        <strong>${piece.designation}</strong> (Réf: ${piece.ref || 'N/A'})<br>
+                        <span>Prix de vente: ${piece.prix_vente.toFixed(2)} € HT</span>
+                    `;
+                    div.onclick = () => selectionnerPiecePourFacture(piece);
+                    resultsContainer.appendChild(div);
+                });
+            }).catch(error => console.error("Erreur de recherche de pièce:", error));
+    }
+
+    function selectionnerPiecePourFacture(piece) {
+        const quantite = parseFloat(prompt(`Quantité pour "${piece.designation}" ?`, "1"));
+        if (quantite && !isNaN(quantite) && quantite > 0) {
+            ajouterLigne(`${piece.designation} (Réf: ${piece.ref || 'N/A'})`, quantite, piece.prix_vente, piece.id);
+            fermerRecherchePieceFacture();
+        }
+    }
+
+    function ajouterLigneMainDoeuvre() {
+        const heures = parseFloat(prompt("Nombre d'heures ?", "2"));
+        const taux = parseFloat(prompt("Taux horaire HT ?", "65"));
+        if (!isNaN(heures) && !isNaN(taux)) ajouterLigne("Main d'oeuvre mécanique", heures, taux);
+    }
+
+    function sauvegarderFacture() {
+        if (!factureActuelle.clientId) { alert("Veuillez sélectionner un client."); return; }
+        if (factureActuelle.lignes.length === 0) { alert("Veuillez ajouter au moins une ligne à la facture."); return; }
+
+        const data_a_envoyer = {
+            numero_facture: document.getElementById('facture-numero').innerText,
+            client_id: factureActuelle.clientId,
+            informations_complementaires: document.getElementById('facture-infos-complementaires').value,
+            lignes: factureActuelle.lignes.map(l => ({
+                description: l.description,
+                quantite: l.quantite,
+                prix_unitaire_ht: l.prix_unitaire_ht,
+                piece_id: l.piece_id
+            }))
+        };
+
+        console.log("Tentative de sauvegarde avec les données suivantes :", JSON.stringify(data_a_envoyer, null, 2));
+
+        fetch("http://127.0.0.1:5000/api/factures", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data_a_envoyer)
+        })
+        .then(response => {
+            console.log("Réponse brute du serveur reçue. Statut:", response.status);
+            if (!response.ok) {
+                // Si la réponse n'est pas OK, on essaie de lire le texte de l'erreur
+                return response.text().then(text => { 
+                    throw new Error(`Erreur du serveur (statut ${response.status}): ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Données JSON analysées avec succès:", data);
+            alert(data.message || "Facture sauvegardée avec succès !");
+            
+            if (data.facture && data.facture.id) {
+                const factureId = data.facture.id;
+                document.getElementById('facture-actions-initiales').style.display = 'none';
+                document.getElementById('facture-actions-post-sauvegarde').style.display = 'block';
+                document.getElementById('btn-imprimer-pdf').onclick = () => imprimerFacture(factureId);
+            } else {
+                console.error("La réponse du serveur ne contient pas l'ID de la facture.", data);
+                alert("La facture a été sauvegardée, mais une erreur est survenue lors de la récupération de son ID. Le bouton PDF ne sera pas disponible.");
+            }
+        })
+        .catch(error => {
+            console.error("Erreur détaillée lors de la sauvegarde de la facture:", error);
+            alert(`Une erreur est survenue lors de la sauvegarde : ${error.message}. Vérifiez la console pour plus de détails.`);
+        });
+    }
+
+    function imprimerFacture(factureId) { window.open(`http://127.0.0.1:5000/api/factures/${factureId}/pdf`); }
+
     function afficherInterfaceFactures() {
       hideAllPanels();
       document.getElementById('facture-options').style.display = 'block';
+    }
+
+    function afficherFormulaireRechercheFacture() {
+        hideAllPanels();
+        document.getElementById('recherche-facture-form').style.display = 'block';
+        document.getElementById('resultats-recherche-factures').innerHTML = ''; // Vider les anciens résultats
+        document.getElementById('recherche-facture-input').focus();
+    }
+
+    function rechercherFacture() {
+        const searchTerm = document.getElementById('recherche-facture-input').value;
+        if (searchTerm.length < 2) {
+            alert("Veuillez entrer au moins 2 caractères pour la recherche.");
+            return;
+        }
+
+        fetch(`http://127.0.0.1:5000/api/factures/search?q=${searchTerm}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Erreur réseau lors de la recherche.');
+                return response.json();
+            })
+            .then(factures => {
+                afficherResultatsFactures(factures);
+            })
+            .catch(error => {
+                console.error("Erreur lors de la recherche de factures:", error);
+                document.getElementById('resultats-recherche-factures').innerHTML = `<p>Une erreur est survenue.</p>`;
+            });
+    }
+
+    function afficherResultatsFactures(factures) {
+        const container = document.getElementById('resultats-recherche-factures');
+        container.innerHTML = '';
+
+        if (!factures || factures.length === 0) {
+            container.innerHTML = '<p>Aucune facture trouvée pour votre recherche.</p>';
+        } else {
+            factures.forEach(facture => {
+                const bloc = document.createElement('div');
+                bloc.className = 'client-card'; // On réutilise le style des fiches
+                const clientPrenom = facture.client.prenom || ''; // Gestion du prénom potentiellement absent
+                const clientNom = facture.client.nom || '';
+                const dateCreation = new Date(facture.date_creation).toLocaleDateString('fr-FR');
+                bloc.innerHTML = `
+                    <h4>Facture N° ${facture.numero_facture}</h4>
+                    <p><strong>Client :</strong> ${clientPrenom.trim()} ${clientNom.trim()}</p>
+                    <p><strong>Date :</strong> ${dateCreation}</p>
+                    <p><strong>Total TTC :</strong> ${facture.total_ttc.toFixed(2)} €</p>
+                    <button onclick="imprimerFacture(${facture.id})">Imprimer PDF</button>
+                `;
+                container.appendChild(bloc);
+            });
+        }
+        container.style.display = 'block';
     }
 
     function afficherOptionsClient() { hideAllPanels(); document.getElementById('client-options').style.display = 'block'; }
@@ -227,7 +683,7 @@
       const prenom = document.getElementById("recherche-prenom").value;
       const code_postal = document.getElementById("recherche-code-postal").value;
 
-      fetch("http://127.0.0.1:5000/api/clients/recherche", {
+      fetch("http://127.0.0.1:5000/api/clients/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -243,7 +699,7 @@
       const designation = document.getElementById('recherche-piece-designation').value;
       const ref = document.getElementById('recherche-piece-ref').value;
 
-      fetch("http://127.0.0.1:5000/api/pieces/recherche", {
+      fetch("http://127.0.0.1:5000/api/pieces/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ designation, ref })
@@ -360,7 +816,11 @@
     }
 
     // Fonctions vides pour éviter les erreurs sur les onglets non implémentés
-    function afficherInterfaceMaindoeuvre() { alert("Section 'Main d\'oeuvre' non implémentée."); }
+    function afficherInterfaceMaindoeuvre() {
+      hideAllPanels();
+      document.getElementById('interface-maindoeuvre').style.display = 'block';
+    }
+
     function afficherInterfaceAnalyse() { alert("Section 'Analyse' non implémentée."); }
     function afficherInterfacePhotos() { alert("Section 'Photos' non implémentée."); }
 
@@ -388,6 +848,80 @@
         afficherInterfacePieces(); // Revenir à l'écran principal des pièces
       })
       .catch(error => console.error("Erreur lors de l'ajout de la pièce:", error));
+    }
+
+    // --- NOUVEAU: Fonctions pour la Main d'oeuvre ---
+
+    function afficherFormulaireNouvelleMainDoeuvre() { hideAllPanels(); document.getElementById('nouveau-maindoeuvre-form').style.display = 'block'; }
+    function afficherFormulaireRechercheMainDoeuvre() { hideAllPanels(); document.getElementById('recherche-maindoeuvre-form').style.display = 'block'; document.getElementById('resultats-recherche-maindoeuvre').innerHTML = ''; }
+
+    function ajouterMainDoeuvre() {
+      const maindoeuvre = {
+        description: document.getElementById('maindoeuvre-description').value,
+        taux_horaire: document.getElementById('maindoeuvre-taux-horaire').value
+      };
+
+      if (!maindoeuvre.description || !maindoeuvre.taux_horaire) {
+        alert("La description et le taux horaire sont obligatoires.");
+        return;
+      }
+
+      fetch("http://127.0.0.1:5000/api/maindoeuvre", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(maindoeuvre)
+      })
+      .then(response => {
+        // Gère les réponses d'erreur du serveur (comme les doublons)
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.message) });
+        }
+        return response.json();
+      })
+      .then(data => {
+        alert(data.message || "Type de main d'oeuvre ajouté avec succès !");
+        // Vider le formulaire d'ajout
+        document.getElementById('nouveau-maindoeuvre-form').reset();
+        // Vider le champ de recherche pour s'assurer d'afficher tous les résultats
+        document.getElementById('recherche-maindoeuvre-description').value = '';
+        // Lancer une recherche pour rafraîchir la liste et l'afficher
+        rechercherMainDoeuvre();
+      })
+      .catch(error => {
+          console.error("Erreur lors de l'ajout de la main d'oeuvre:", error);
+          alert(error.message); // Affiche le message d'erreur spécifique à l'utilisateur
+      });
+    }
+
+    function rechercherMainDoeuvre() {
+      const description = document.getElementById('recherche-maindoeuvre-description').value;
+      fetch("http://127.0.0.1:5000/api/maindoeuvre/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ description })
+      })
+      .then(response => response.json())
+      .then(data => afficherResultatsMainDoeuvre(data.maindoeuvre))
+      .catch(error => console.error("Erreur lors de la recherche de main d'oeuvre:", error));
+    }
+
+    function afficherResultatsMainDoeuvre(items) {
+      const container = document.getElementById("resultats-recherche-maindoeuvre");
+      container.innerHTML = "";
+      hideAllPanels();
+      document.getElementById('recherche-maindoeuvre-form').style.display = 'block';
+
+      if (!items || items.length === 0) {
+          container.innerHTML = "<p>Aucun type de main d'oeuvre trouvé.</p>";
+      } else {
+          items.forEach(item => {
+              const bloc = document.createElement("div");
+              bloc.className = "client-card";
+              bloc.innerHTML = `<p><strong>Description :</strong> ${item.description}</p><p><strong>Taux horaire HT :</strong> ${item.taux_horaire.toFixed(2)} €</p>`;
+              container.appendChild(bloc);
+          });
+      }
+      container.style.display = "block";
     }
 
     function enregistrerModification(id) {
