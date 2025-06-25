@@ -13,13 +13,14 @@
     .tabs {
       background: #d6d6d6;
       display: flex;
-      border-bottom: 2px solid #999;
+      border-bottom: 2px solid lightskyblue;
     }
     .tabs div {
       padding: 10px 20px;
-      border-right: 1px solid #aaa;
+      border-right: 1px solid lightskyblue;
       font-weight: bold;
       cursor: pointer;
+      color: black
     }
     .main {
       display: flex;
@@ -29,12 +30,26 @@
       flex: 1;
       padding: 20px;
     }
-    .sidebar {
-      width: 200px;
-      background: #eee;
-      padding: 20px;
-      border-left: 1px solid #ccc;
+
+  .sidebar {
+  position: fixed;
+  top: 50px; /* distance du haut */
+  right: 0; /* collé au bord droit */
+  width: 180px;
+  background: #eee;
+  padding: 20px;
+  border-left: 1px solid lightskyblue;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  z-index: 999;
+}
+  .sidebar button {
+    width: auto;
+    margin: 0;
+    padding: 10px;
     }
+
     .sidebar button {
       display: block;
       width: 100%;
@@ -73,6 +88,21 @@
      #client-options, #nouveau-client-form, #recherche-client-form, #resultatsRecherche, #interface-pieces, #accueil-section, #nouveau-piece-form, #recherche-piece-form, #resultats-recherche-pieces, #facture-options, #nouvelle-facture-form, #interface-maindoeuvre, #nouveau-maindoeuvre-form, #recherche-maindoeuvre-form, #resultats-recherche-maindoeuvre {
       display: none;
     }
+       /* NOUVEAU: Style pour la section d'accueil avec image de fond */
+    #accueil-section {
+      position: relative; /* Nécessaire pour positionner le voile sombre */
+      height: 100%; /* Prend toute la hauteur disponible */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-image: url('drawable/logo.png'); /* Chemin relatif correct vers votre logo */
+      background-size: contain; /* Affiche l'image entièrement, sans la couper */
+      background-repeat: no-repeat; /* Empêche l'image de se répéter */
+      background-position: center; /* L'image est centrée */
+      text-align: center;
+   /* Le voile sombre et le texte blanc ont été retirés, car ils ne sont plus nécessaires. */
+    }
     .client-card {
       background: white;
       border: 1px solid #ccc;
@@ -99,8 +129,8 @@
         max-height: 80vh;
         overflow-y: auto;
     }
-    #resultats-recherche-piece-facture .resultat-piece { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
-    #resultats-recherche-piece-facture .resultat-piece:hover { background-color: #f0f0f0; }
+    .resultat-recherche-facture-item { padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; }
+    .resultat-recherche-facture-item:hover { background-color: #f0f0f0; }
     #nouvelle-facture-form {
         background: white;
         padding: 20px;
@@ -163,13 +193,14 @@
 </head>
 <body>
   <div class="tabs">
-    <div onclick="afficherAccueil()">0 - Accueil</div>
-    <div onclick="afficherInterfaceFactures()">1 - Factures</div>
-    <div onclick="afficherOptionsClient()">2 - Clients</div>
-    <div onclick="afficherInterfacePieces()">3 - Pièces</div>
-    <div onclick="afficherInterfaceMaindoeuvre()">4 - Main d'oeuvre</div>
-    <div onclick="afficherInterfaceAnalyse()">5 - Analyse</div>
-    <div onclick="afficherInterfacePhotos()">6 - Photos</div>
+    <div onclick="afficherAccueil()">F1 - Accueil</div>
+    <div onclick="afficherInterfaceFactures()">F2 - Factures</div>
+    <div onclick="afficherOptionsClient()">F3 - Clients</div>
+    <div onclick="afficherInterfacePieces()">F4 - Pièces</div>
+    <div onclick="afficherInterfaceMaindoeuvre()">F5 - Main d'oeuvre</div>
+    <div onclick="afficherInterfaceAnalyse()">F6 - Analyse</div>
+    <div onclick="afficherInterfacePhotos()">F7 - Photos</div>
+    <div onclick="afficherInterfaceOptions()">F8 - Options</div>
   </div>
 
     <div class="main">
@@ -207,6 +238,35 @@
               <div id="resultats-recherche-piece-facture"></div>
               <button onclick="fermerRecherchePieceFacture()">Fermer</button>
           </div>
+      </div>
+
+       <!-- NOUVEAU: MODAL/PANEL de recherche de Main d'oeuvre pour la facture -->
+      <div id="recherche-maindoeuvre-facture-panel" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3>Rechercher et ajouter de la Main d'oeuvre</h3>
+              <input type="text" id="recherche-maindoeuvre-facture-input" onkeyup="rechercherMainDoeuvrePourFacture()" placeholder="Rechercher par description...">
+              <div id="resultats-recherche-maindoeuvre-facture"></div>
+              <button onclick="fermerRechercheMainDoeuvreFacture()">Fermer</button>
+          </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour la modification d'un client -->
+      <div id="edit-client-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3>Modifier le client</h3>
+              <input type="hidden" id="edit-client-id">
+              <div class="form-group"><label for="edit-nom">Nom</label><input type="text" id="edit-nom"></div>
+              <div class="form-group"><label for="edit-prenom">Prénom</label><input type="text" id="edit-prenom"></div>
+              <div class="form-group"><label for="edit-telephone">Téléphone</label><input type="text" id="edit-telephone"></div>
+              <div class="form-group"><label for="edit-email">Email</label><input type="email" id="edit-email"></div>
+              <div class="form-group"><label for="edit-adresse">Adresse</label><input type="text" id="edit-adresse"></div>
+              <div class="form-group"><label for="edit-code_postal">Code Postal</label><input type="text" id="edit-code_postal"></div>
+              <div class="form-group"><label for="edit-ville">Ville</label><input type="text" id="edit-ville"></div>
+              <div class="form-group"><label for="edit-pays">Pays</label><input type="text" id="edit-pays"></div>
+              <button type="button" onclick="enregistrerModificationClient()">Sauvegarder</button>
+              <button type="button" onclick="fermerModalModificationClient()">Annuler</button>
+          </div>
+      
       </div>
 
       <div id="nouvelle-facture-form">
@@ -274,10 +334,9 @@
 
       <div id="recherche-client-form">
         <h2>Rechercher un client</h2>
-        <input type="text" id="recherche-nom" placeholder="Nom">
-        <input type="text" id="recherche-prenom" placeholder="Prénom">
-        <input type="text" id="recherche-code-postal" placeholder="Code postal">
-        <button onclick="rechercherClient()">Rechercher</button>
+        <div class="form-group">
+            <input type="text" id="recherche-client-input" onkeyup="rechercherClient()" placeholder="Rechercher par nom, prénom, email, etc.">
+        </div>
       </div>
 
       <div id="resultatsRecherche"></div>
@@ -335,10 +394,10 @@
     </div>
 
     <div class="sidebar">
-      <button>Fermer</button>
+      <button>Retour</button>
       <button>Notification</button>
-      <button>Contrôle</button>
-      <button>Archive</button>
+      <button>Paramètre</button>
+      <button>Comptabilité</button>
     </div>
   </div>
 
@@ -348,7 +407,8 @@
   </div>
 
   <script>
-    function hideAllPanels() {
+    // Renommé pour plus de clarté : cache tous les panneaux de contenu principaux
+    function hideAllContentPanels() {
         const panelIds = [
             'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces',
             'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre', 
@@ -361,13 +421,62 @@
         });
     }
 
+    // Variable globale pour stocker l'historique des panneaux de contenu principaux
+    let panelHistory = [];
+    const MAX_HISTORY_SIZE = 10; // Limite l'historique pour éviter une utilisation excessive de la mémoire
+
+    // Fonction centrale pour afficher un panneau de contenu principal et gérer l'historique
+    function showPanel(panelId, addToHistory = true) {
+        hideAllContentPanels(); // Cache d'abord tous les panneaux de contenu principaux
+
+        const panelToShow = document.getElementById(panelId);
+        if (panelToShow) {
+            panelToShow.style.display = 'block';
+        } else {
+            console.warn(`Panneau principal avec l'ID '${panelId}' non trouvé.`);
+            return; // Sortir si le panneau n'existe pas
+        }
+
+        if (addToHistory) {
+            // Empêche d'ajouter le même panneau plusieurs fois s'il est déjà le dernier
+            if (panelHistory.length === 0 || panelHistory[panelHistory.length - 1] !== panelId) {
+                panelHistory.push(panelId);
+                // Réduire l'historique s'il devient trop long
+                if (panelHistory.length > MAX_HISTORY_SIZE) {
+                    panelHistory.shift(); // Supprime l'entrée la plus ancienne
+                }
+            }
+        }
+    }
+
+    // Fonction pour fermer toute modale actuellement ouverte
+    function closeOpenModal() {
+        const modals = document.querySelectorAll('.modal-overlay');
+        let modalClosed = false;
+        modals.forEach(modal => {
+            if (modal.style.display === 'flex') { // Les modales sont affichées avec 'flex'
+                modal.style.display = 'none';
+                modalClosed = true;
+            }
+        });
+        return modalClosed; // Renvoie true si une modale a été fermée, false sinon
+    }
+
+    // Fonction pour revenir en arrière dans l'historique ou fermer une modale
+    function goBack() {
+        if (closeOpenModal()) { return; } // Une modale a été fermée, on s'arrête là.
+        if (panelHistory.length > 1) {
+            panelHistory.pop(); // Supprime le panneau actuel de l'historique
+            const previousPanelId = panelHistory[panelHistory.length - 1]; // Récupère l'ID du panneau précédent
+            showPanel(previousPanelId, false); // L'affiche, mais sans l'ajouter à nouveau à l'historique
+        } else { showPanel('accueil-section', false); } // Si l'historique est vide ou n'a qu'un seul élément, on va à l'accueil
+    }
+
     // --- Logique de la nouvelle facture ---
     let factureActuelle = { clientId: null, lignes: [], tvaTaux: 0.20 };
 
-    function afficherFormulaireNouvelleFacture() {
-        hideAllPanels();
-        document.getElementById('nouvelle-facture-form').style.display = 'block';
-
+    function afficherFormulaireNouvelleFacture() { // F2 - Nouvelle facture
+        showPanel('nouvelle-facture-form');
         // Réinitialiser l'état de la facture
         factureActuelle = { clientId: null, lignes: [], tvaTaux: 0.20 };
         document.getElementById('facture-client-details').style.display = 'none';
@@ -506,7 +615,7 @@
                 resultsContainer.innerHTML = '';
                 pieces.forEach(piece => {
                     const div = document.createElement('div');
-                    div.className = 'resultat-piece';
+                    div.className = 'resultat-recherche-facture-item';
                     div.innerHTML = `
                         <strong>${piece.designation}</strong> (Réf: ${piece.ref || 'N/A'})<br>
                         <span>Prix de vente: ${piece.prix_vente.toFixed(2)} € HT</span>
@@ -526,9 +635,48 @@
     }
 
     function ajouterLigneMainDoeuvre() {
-        const heures = parseFloat(prompt("Nombre d'heures ?", "2"));
-        const taux = parseFloat(prompt("Taux horaire HT ?", "65"));
-        if (!isNaN(heures) && !isNaN(taux)) ajouterLigne("Main d'oeuvre mécanique", heures, taux);
+        // Ouvre le panneau de recherche de main d'oeuvre
+        document.getElementById('recherche-maindoeuvre-facture-panel').style.display = 'flex';
+        document.getElementById('recherche-maindoeuvre-facture-input').focus();
+    }
+
+    function fermerRechercheMainDoeuvreFacture() {
+        document.getElementById('recherche-maindoeuvre-facture-panel').style.display = 'none';
+        document.getElementById('recherche-maindoeuvre-facture-input').value = '';
+        document.getElementById('resultats-recherche-maindoeuvre-facture').innerHTML = '';
+    }
+
+    function rechercherMainDoeuvrePourFacture() {
+        const searchTerm = document.getElementById('recherche-maindoeuvre-facture-input').value;
+        const resultsContainer = document.getElementById('resultats-recherche-maindoeuvre-facture');
+        if (searchTerm.length < 2) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+
+        fetch(`http://127.0.0.1:5000/api/maindoeuvre/search?q=${searchTerm}`)
+            .then(response => response.json())
+            .then(items => {
+                resultsContainer.innerHTML = '';
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'resultat-recherche-facture-item';
+                    div.innerHTML = `
+                        <strong>${item.description}</strong><br>
+                        <span>Taux horaire: ${item.taux_horaire.toFixed(2)} € HT</span>
+                    `;
+                    div.onclick = () => selectionnerMainDoeuvrePourFacture(item);
+                    resultsContainer.appendChild(div);
+                });
+            }).catch(error => console.error("Erreur de recherche de main d'oeuvre:", error));
+    }
+
+    function selectionnerMainDoeuvrePourFacture(item) {
+        const quantite = parseFloat(prompt(`Nombre d'heures pour "${item.description}" ?`, "1"));
+        if (quantite && !isNaN(quantite) && quantite > 0) {
+            ajouterLigne(item.description, quantite, item.taux_horaire);
+            fermerRechercheMainDoeuvreFacture();
+        }
     }
 
     function sauvegarderFacture() {
@@ -587,13 +735,11 @@
     function imprimerFacture(factureId) { window.open(`http://127.0.0.1:5000/api/factures/${factureId}/pdf`); }
 
     function afficherInterfaceFactures() {
-      hideAllPanels();
-      document.getElementById('facture-options').style.display = 'block';
+      showPanel('facture-options'); // F2 - Factures
     }
 
     function afficherFormulaireRechercheFacture() {
-        hideAllPanels();
-        document.getElementById('recherche-facture-form').style.display = 'block';
+        showPanel('recherche-facture-form'); // F2 - Recherche de facture
         document.getElementById('resultats-recherche-factures').innerHTML = ''; // Vider les anciens résultats
         document.getElementById('recherche-facture-input').focus();
     }
@@ -645,184 +791,164 @@
         container.style.display = 'block';
     }
 
-    function afficherOptionsClient() { hideAllPanels(); document.getElementById('client-options').style.display = 'block'; }
-    function afficherFormulaireNouveauClient() { hideAllPanels(); document.getElementById('nouveau-client-form').style.display = 'block'; }
-    function afficherFormulaireRechercheClient() { hideAllPanels(); document.getElementById('recherche-client-form').style.display = 'block'; }
-    function afficherFormulaireNouvellePiece() { hideAllPanels(); document.getElementById('nouveau-piece-form').style.display = 'block';  }
-    function afficherFormulaireRecherchePiece() { hideAllPanels(); document.getElementById('recherche-piece-form').style.display = 'block'; document.getElementById('resultats-recherche-pieces').innerHTML = ''; }
-
-    function ajouterClient() {
-      const client = {
-        nom: document.getElementById("nom").value,
-        prenom: document.getElementById("prenom").value,
-        telephone: document.getElementById("telephone").value,
-        email: document.getElementById("email").value,
-        adresse: document.getElementById("adresse").value,
-        code_postal: document.getElementById("code_postal").value,
-        ville: document.getElementById("ville").value,
-        pays: document.getElementById("pays").value
-      };
-
-      fetch("http://127.0.0.1:5000/api/clients", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(client)
-      })
-      .then(response => response.json())
-      .then(data => {
-        alert(data.message);
-        afficherResultats([client]);
-      })
-      .catch(error => console.error("Erreur:", error));
+    function afficherOptionsClient() { showPanel('client-options'); } // F3 - Clients
+    function afficherFormulaireNouveauClient() { // F3 - Nouveau client
+      showPanel('nouveau-client-form');
+      // Vider le formulaire à chaque affichage pour une nouvelle saisie
+      document.getElementById('nouveau-client-form').querySelectorAll('input').forEach(input => input.value = '');
     }
-
-    function rechercherClient() {
-      const nom = document.getElementById("recherche-nom").value;
-      const prenom = document.getElementById("recherche-prenom").value;
-      const code_postal = document.getElementById("recherche-code-postal").value;
-
-      fetch("http://127.0.0.1:5000/api/clients/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ nom, prenom, code_postal })
-      })
-      .then(response => response.json())
-      .then(data => afficherResultats(data.clients))
-      .catch(error => console.error("Erreur:", error));
-    }
-
-    function rechercherPiece() {
-      const designation = document.getElementById('recherche-piece-designation').value;
-      const ref = document.getElementById('recherche-piece-ref').value;
-
-      fetch("http://127.0.0.1:5000/api/pieces/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ designation, ref })
-      })
-      .then(response => response.json())
-      .then(data => afficherResultatsPieces(data.pieces))
-      .catch(error => console.error("Erreur lors de la recherche de pièces:", error));
-    }
-
-    function afficherResultatsPieces(pieces) {
-      const container = document.getElementById("resultats-recherche-pieces");
-      container.innerHTML = ""; // Vider les anciens résultats
-      hideAllPanels(); // Cacher les autres panneaux
-      document.getElementById('recherche-piece-form').style.display = 'block'; // Garder le formulaire de recherche visible
-
-      if (!pieces || pieces.length === 0) {
-          container.innerHTML = "<p>Aucune pièce trouvée.</p>";
-      } else {
-          pieces.forEach(piece => {
-              const bloc = document.createElement("div");
-              bloc.className = "client-card"; // On réutilise le même style
-              bloc.innerHTML = `
-                  <p><strong>Désignation :</strong> ${piece.designation}</p>
-                  <p><strong>Référence :</strong> ${piece.ref || 'N/A'}</p>
-                  <p><strong>Prix Achat HT :</strong> ${piece.prix_achat !== null ? piece.prix_achat.toFixed(2) + ' €' : 'N/A'}</p>
-                  <p><strong>Prix Vente HT :</strong> ${piece.prix_vente.toFixed(2)} €</p>
-              `;
-              container.appendChild(bloc);
-          });
-      }
-      container.style.display = "block";
-    }
-
-    function afficherResultats(clients) {
-      const container = document.getElementById("resultatsRecherche");
-      container.innerHTML = "";
-
-      if (clients.length === 0) {
-        container.innerHTML = "<p>Aucun client trouvé.</p>";
-        return;
-      }
-
-      clients.forEach(client => {
-        const bloc = document.createElement("div");
-        bloc.className = "client-card";
-        bloc.innerHTML = `
-          <p><strong>Nom :</strong> ${client.nom}</p>
-          <p><strong>Prénom :</strong> ${client.prenom}</p>
-          <p><strong>Téléphone :</strong> ${client.telephone}</p>
-          <p><strong>Email :</strong> ${client.email}</p>
-          <p><strong>Adresse :</strong> ${client.adresse}</p>
-          <p><strong>Code postal :</strong> ${client.code_postal}</p>
-          <p><strong>Ville :</strong> ${client.ville}</p>
-          <p><strong>Pays :</strong> ${client.pays}</p>
-          <button onclick="supprimerClient(${client.id})">Supprimer</button>
-          <button onclick='modifierClient(${JSON.stringify(client)})'>Modifier</button>
-
-        `;
-        container.appendChild(bloc);
-      });
-
-      container.style.display = "block";
-    }
-    function supprimerClient(id) {
-    if (!confirm("Confirmer la suppression de ce client ?")) return;
-    fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
-      method: "DELETE"
-    })
-    .then(response => response.json())
-    .then(data => {
-      alert(data.message);
-      rechercherClient();
-    })
-    .catch(error => console.error("Erreur:", error));
-  }
-
-    function modifierClient(client) {
-    const form = document.createElement("div");
-    form.className = "client-card";
-    form.innerHTML = `
-      <h3>Modifier le client</h3>
-      <input type="text" id="edit-nom" value="${client.nom}" placeholder="Nom">
-      <input type="text" id="edit-prenom" value="${client.prenom}" placeholder="Prénom">
-      <input type="text" id="edit-telephone" value="${client.telephone}" placeholder="Téléphone">
-      <input type="email" id="edit-email" value="${client.email}" placeholder="Email">
-      <input type="text" id="edit-adresse" value="${client.adresse}" placeholder="Adresse">
-      <input type="text" id="edit-code_postal" value="${client.code_postal}" placeholder="Code postal">
-      <input type="text" id="edit-ville" value="${client.ville}" placeholder="Ville">
-      <input type="text" id="edit-pays" value="${client.pays}" placeholder="Pays">
-      <button onclick="enregistrerModification(${client.id})">Enregistrer</button>
-    `;
-    const container = document.getElementById("resultatsRecherche");
-    container.innerHTML = "";
-    container.appendChild(form);
-
-  }
-    function testerBackendPieces() {
-     fetch("http://127.0.0.1:5000/api/pieces")
-    .then(response => response.json())
-    .then(data => alert("Réponse backend : " + data.message))
-    .catch(error => alert("Erreur de connexion au backend : " + error));
-}
+    function afficherFormulaireNouvellePiece() { showPanel('nouveau-piece-form');  } // F4 - Nouvelle référence
+    function afficherFormulaireRecherchePiece() { showPanel('recherche-piece-form'); document.getElementById('resultats-recherche-pieces').innerHTML = ''; } // F4 - Référence connue
 
     // --- Fonctions de navigation entre les onglets ---
 
     function afficherInterfacePieces(){
-      hideAllPanels();
-      document.getElementById('interface-pieces').style.display = 'block';
+      showPanel('interface-pieces'); // F4 - Pièces
     }
 
     function afficherAccueil() {
-      hideAllPanels();
-      document.getElementById('accueil-section').style.display = 'block';
+      showPanel('accueil-section'); // F1 - Accueil
     }
 
     // Fonctions vides pour éviter les erreurs sur les onglets non implémentés
     function afficherInterfaceMaindoeuvre() {
-      hideAllPanels();
-      document.getElementById('interface-maindoeuvre').style.display = 'block';
+      showPanel('interface-maindoeuvre'); // F5 - Main d'oeuvre
     }
 
     function afficherInterfaceAnalyse() { alert("Section 'Analyse' non implémentée."); }
     function afficherInterfacePhotos() { alert("Section 'Photos' non implémentée."); }
+
+    // --- GESTION DES CLIENTS (ONGLET 2) - VERSION AMÉLIORÉE ---
+
+    function afficherFormulaireRechercheClient() { // F3 - Client déjà existant
+        showPanel('recherche-client-form');
+        document.getElementById('resultatsRecherche').style.display = 'block';
+        document.getElementById('recherche-client-input').value = '';
+        rechercherClient(); // Lance une recherche initiale pour afficher tous les clients
+    }
+
+    function rechercherClient() {
+        const searchTerm = document.getElementById("recherche-client-input").value;
+        // Note: L'API backend doit être adaptée pour gérer une recherche GET sur /api/clients/search?q=...
+        fetch(`http://127.0.0.1:5000/api/clients/search?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+                return response.json();
+            })
+            .then(clients => {
+                afficherResultatsClients(clients);
+            })
+            .catch(error => {
+                console.error("Erreur lors de la recherche de client:", error);
+                document.getElementById("resultatsRecherche").innerHTML = `<p class="error">Erreur lors de la récupération des clients.</p>`;
+            });
+    }
+
+    function afficherResultatsClients(clients) {
+        const container = document.getElementById("resultatsRecherche");
+        container.innerHTML = "";
+
+        if (!clients || clients.length === 0) {
+            container.innerHTML = "<p>Aucun client trouvé.</p>";
+            return;
+        }
+
+        clients.forEach(client => {
+            const bloc = document.createElement("div");
+            bloc.className = "client-card";
+            bloc.innerHTML = `
+              <p><strong>Nom :</strong> ${client.nom || ''} ${client.prenom || ''}</p>
+              <p><strong>Téléphone :</strong> ${client.telephone || 'N/A'}</p>
+              <p><strong>Email :</strong> ${client.email || 'N/A'}</p>
+              <p><strong>Adresse :</strong> ${client.adresse || ''}, ${client.code_postal || ''} ${client.ville || ''}</p>
+              <button onclick='ouvrirModalModificationClient(${JSON.stringify(client)})'>Modifier</button>
+              <button onclick="supprimerClient(${client.id})">Supprimer</button>
+            `;
+            container.appendChild(bloc);
+        });
+    }
+
+    function ouvrirModalModificationClient(client) {
+        document.getElementById('edit-client-id').value = client.id;
+        document.getElementById('edit-nom').value = client.nom || '';
+        document.getElementById('edit-prenom').value = client.prenom || '';
+        document.getElementById('edit-telephone').value = client.telephone || '';
+        document.getElementById('edit-email').value = client.email || '';
+        document.getElementById('edit-adresse').value = client.adresse || '';
+        document.getElementById('edit-code_postal').value = client.code_postal || '';
+        document.getElementById('edit-ville').value = client.ville || '';
+        document.getElementById('edit-pays').value = client.pays || '';
+        document.getElementById('edit-client-modal').style.display = 'flex';
+    }
+
+    function fermerModalModificationClient() {
+        document.getElementById('edit-client-modal').style.display = 'none';
+    }
+
+    function enregistrerModificationClient() {
+        const clientId = document.getElementById("edit-client-id").value;
+        const clientData = {
+            nom: document.getElementById("edit-nom").value,
+            prenom: document.getElementById("edit-prenom").value,
+            telephone: document.getElementById("edit-telephone").value,
+            email: document.getElementById("edit-email").value,
+            adresse: document.getElementById("edit-adresse").value,
+            code_postal: document.getElementById("edit-code_postal").value,
+            ville: document.getElementById("edit-ville").value,
+            pays: document.getElementById("edit-pays").value
+        };
+
+        fetch(`http://127.0.0.1:5000/api/clients/${clientId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(clientData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            fermerModalModificationClient();
+            rechercherClient(); // Rafraîchit la liste pour afficher les modifications
+        })
+        .catch(error => console.error("Erreur lors de la modification:", error));
+    }
+
+    function ajouterClient() {
+        const client = {
+            nom: document.getElementById("nom").value,
+            prenom: document.getElementById("prenom").value,
+            telephone: document.getElementById("telephone").value,
+            email: document.getElementById("email").value,
+            adresse: document.getElementById("adresse").value,
+            code_postal: document.getElementById("code_postal").value,
+            ville: document.getElementById("ville").value,
+            pays: document.getElementById("pays").value
+        };
+
+        fetch("http://127.0.0.1:5000/api/clients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(client)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            afficherFormulaireRechercheClient(); // Revenir à la liste des clients et la rafraîchir
+        })
+        .catch(error => console.error("Erreur:", error));
+    }
+
+    function supprimerClient(id) {
+        if (!confirm("Confirmer la suppression de ce client ? Cette action est irréversible.")) return;
+        fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
+            method: "DELETE"
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            rechercherClient(); // Rafraîchit la liste après la suppression
+        })
+        .catch(error => console.error("Erreur:", error));
+    }
 
     // --- Fonctions de gestion des données ---
 
@@ -844,16 +970,64 @@
       .then(response => response.json())
       .then(data => {
         alert(data.message || "Pièce ajoutée avec succès !");
-        document.getElementById('nouveau-piece-form').reset(); // Optionnel : vider le formulaire
+        // Correction: .reset() ne fonctionne que sur les <form>, on vide les champs manuellement.
+        document.getElementById('piece-designation').value = '';
+        document.getElementById('piece-ref').value = '';
+        document.getElementById('piece-prix-achat').value = '';
+        document.getElementById('piece-prix-vente').value = '';
         afficherInterfacePieces(); // Revenir à l'écran principal des pièces
       })
       .catch(error => console.error("Erreur lors de l'ajout de la pièce:", error));
     }
 
+    function rechercherPiece() {
+      const designation = document.getElementById('recherche-piece-designation').value;
+      const ref = document.getElementById('recherche-piece-ref').value;
+
+      fetch("http://127.0.0.1:5000/api/pieces/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ designation, ref })
+      })
+      .then(response => response.json())
+      .then(data => afficherResultatsPieces(data.pieces))
+      .catch(error => console.error("Erreur lors de la recherche de pièces:", error));
+    }
+
+    function afficherResultatsPieces(pieces) {
+      const container = document.getElementById("resultats-recherche-pieces");
+      container.innerHTML = ""; // Vider les anciens résultats
+      document.getElementById('recherche-piece-form').style.display = 'block'; // Garder le formulaire de recherche visible
+
+      if (!pieces || pieces.length === 0) {
+          container.innerHTML = "<p>Aucune pièce trouvée.</p>";
+      } else {
+          pieces.forEach(piece => {
+              const bloc = document.createElement("div");
+              bloc.className = "client-card"; // On réutilise le même style
+              bloc.innerHTML = `
+                  <p><strong>Désignation :</strong> ${piece.designation}</p>
+                  <p><strong>Référence :</strong> ${piece.ref || 'N/A'}</p>
+                  <p><strong>Prix Achat HT :</strong> ${piece.prix_achat !== null ? piece.prix_achat.toFixed(2) + ' €' : 'N/A'}</p>
+                  <p><strong>Prix Vente HT :</strong> ${piece.prix_vente.toFixed(2)} €</p>
+              `;
+              container.appendChild(bloc);
+          });
+      }
+      container.style.display = "block";
+    }
+
+    function testerBackendPieces() {
+     fetch("http://127.0.0.1:5000/api/pieces")
+    .then(response => response.json())
+    .then(data => alert("Réponse backend : " + data.message))
+    .catch(error => alert("Erreur de connexion au backend : " + error));
+}
+
     // --- NOUVEAU: Fonctions pour la Main d'oeuvre ---
 
-    function afficherFormulaireNouvelleMainDoeuvre() { hideAllPanels(); document.getElementById('nouveau-maindoeuvre-form').style.display = 'block'; }
-    function afficherFormulaireRechercheMainDoeuvre() { hideAllPanels(); document.getElementById('recherche-maindoeuvre-form').style.display = 'block'; document.getElementById('resultats-recherche-maindoeuvre').innerHTML = ''; }
+    function afficherFormulaireNouvelleMainDoeuvre() { showPanel('nouveau-maindoeuvre-form'); } // F5 - Nouveau type
+    function afficherFormulaireRechercheMainDoeuvre() { showPanel('recherche-maindoeuvre-form'); document.getElementById('resultats-recherche-maindoeuvre').innerHTML = ''; } // F5 - Rechercher un type
 
     function ajouterMainDoeuvre() {
       const maindoeuvre = {
@@ -880,8 +1054,9 @@
       })
       .then(data => {
         alert(data.message || "Type de main d'oeuvre ajouté avec succès !");
-        // Vider le formulaire d'ajout
-        document.getElementById('nouveau-maindoeuvre-form').reset();
+        // Correction: .reset() ne fonctionne que sur les <form>, on vide les champs manuellement.
+        document.getElementById('maindoeuvre-description').value = '';
+        document.getElementById('maindoeuvre-taux-horaire').value = '';
         // Vider le champ de recherche pour s'assurer d'afficher tous les résultats
         document.getElementById('recherche-maindoeuvre-description').value = '';
         // Lancer une recherche pour rafraîchir la liste et l'afficher
@@ -907,8 +1082,7 @@
 
     function afficherResultatsMainDoeuvre(items) {
       const container = document.getElementById("resultats-recherche-maindoeuvre");
-      container.innerHTML = "";
-      hideAllPanels();
+      container.innerHTML = ""; // Vider les anciens résultats
       document.getElementById('recherche-maindoeuvre-form').style.display = 'block';
 
       if (!items || items.length === 0) {
@@ -917,39 +1091,125 @@
           items.forEach(item => {
               const bloc = document.createElement("div");
               bloc.className = "client-card";
-              bloc.innerHTML = `<p><strong>Description :</strong> ${item.description}</p><p><strong>Taux horaire HT :</strong> ${item.taux_horaire.toFixed(2)} €</p>`;
+              bloc.innerHTML = `
+                <p><strong>Description :</strong> ${item.description}</p>
+                <p><strong>Taux horaire HT :</strong> ${item.taux_horaire.toFixed(2)} €</p>
+                <button onclick="supprimerMainDoeuvre(${item.id})">Supprimer</button>
+                <button onclick='modifierMainDoeuvre(${JSON.stringify(item)})'>Modifier</button>
+              `;
               container.appendChild(bloc);
           });
       }
       container.style.display = "block";
     }
 
-    function enregistrerModification(id) {
-    const client = {
-      nom: document.getElementById("edit-nom").value,
-      prenom: document.getElementById("edit-prenom").value,
-      telephone: document.getElementById("edit-telephone").value,
-      email: document.getElementById("edit-email").value,
-      adresse: document.getElementById("edit-adresse").value,
-      code_postal: document.getElementById("edit-code_postal").value,
-      ville: document.getElementById("edit-ville").value,
-      pays: document.getElementById("edit-pays").value
-    };
+    function supprimerMainDoeuvre(id) {
+        if (!confirm("Confirmer la suppression de ce type de main d'oeuvre ?")) return;
+        fetch(`http://127.0.0.1:5000/api/maindoeuvre/${id}`, {
+            method: "DELETE"
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message) });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message);
+            rechercherMainDoeuvre(); // Rafraîchit la liste
+        })
+        .catch(error => {
+            console.error("Erreur lors de la suppression:", error);
+            alert(error.message);
+        });
+    }
 
-    fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(client)
-    })
-    .then(response => response.json())
-    .then(data => {
-      alert(data.message);
-      rechercherClient(); // recharge les clients
-    })
-    .catch(error => console.error("Erreur:", error));
-  }
+    function modifierMainDoeuvre(item) {
+        const container = document.getElementById("resultats-recherche-maindoeuvre");
+        container.innerHTML = ""; // Vide les résultats précédents
+
+        const form = document.createElement("div");
+        form.className = "client-card";
+        form.innerHTML = `
+          <h3>Modifier le type de main d'oeuvre</h3>
+          <div class="form-group">
+            <label for="edit-maindoeuvre-description">Description</label>
+            <input type="text" id="edit-maindoeuvre-description" value="${item.description}">
+          </div>
+          <div class="form-group">
+            <label for="edit-maindoeuvre-taux">Taux horaire HT</label>
+            <input type="number" id="edit-maindoeuvre-taux" value="${item.taux_horaire.toFixed(2)}" step="0.01">
+          </div>
+          <button onclick="enregistrerModificationMainDoeuvre(${item.id})">Enregistrer</button>
+          <button onclick="rechercherMainDoeuvre()">Annuler</button>
+        `;
+        container.appendChild(form);
+    }
+
+    function enregistrerModificationMainDoeuvre(id) {
+        const data = {
+            description: document.getElementById("edit-maindoeuvre-description").value,
+            taux_horaire: document.getElementById("edit-maindoeuvre-taux").value
+        };
+
+        if (!data.description || !data.taux_horaire) {
+            alert("La description et le taux horaire sont obligatoires.");
+            return;
+        }
+
+        fetch(`http://127.0.0.1:5000/api/maindoeuvre/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message) });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message);
+            rechercherMainDoeuvre(); // Rafraîchit la liste
+        })
+        .catch(error => {
+            console.error("Erreur lors de la modification:", error);
+            alert(error.message);
+        });
+    }
+
+    function afficherInterfaceOptions() { alert("Section 'Options' non implémentée."); } // F8 - Options
+
+    // --- GESTION DES RACCOURCIS CLAVIER (F1, F2, etc.) ---
+    document.addEventListener('keydown', function(event) {
+        // On utilise un switch pour gérer les différentes touches
+        switch (event.key) {
+            case 'F1':
+                event.preventDefault(); // Empêche l'action par défaut du navigateur (ouvrir l'aide)
+                afficherAccueil();
+                break;
+            case 'F2':
+                event.preventDefault();
+                afficherInterfaceFactures();
+                break;
+            case 'F3':
+                event.preventDefault();
+                afficherOptionsClient();
+                break;
+            case 'F4':
+                event.preventDefault();
+                afficherInterfacePieces();
+                break;
+            case 'F5':
+                event.preventDefault();
+                afficherInterfaceMaindoeuvre();
+                break;
+            case 'F6': event.preventDefault(); afficherInterfaceAnalyse(); break;
+            case 'F7': event.preventDefault(); afficherInterfacePhotos(); break;
+            case 'F8': event.preventDefault(); afficherInterfaceOptions(); break;
+            case 'Escape': goBack(); break; // Utilise 'Escape' pour la touche Échap
+        }
+    });
 
   // Afficher l'accueil au chargement de la page
   window.onload = afficherAccueil;

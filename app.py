@@ -96,7 +96,27 @@ class FactureLigne(db.Model):
             'prix_unitaire_ht': self.prix_unitaire_ht,
             'piece_id': self.piece_id
         }
+# Modèle pour le Planning
+class Planning(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    start_datetime = db.Column(db.DateTime, nullable=False)
+    work_description = db.Column(db.Text, nullable=False)
+    technician_name = db.Column(db.String(100))
+    car_registration = db.Column(db.String(20))
+    
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    client = db.relationship('Client', backref=db.backref('planning_events', lazy=True))
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'start_datetime': self.start_datetime.isoformat(),
+            'work_description': self.work_description,
+            'technician_name': self.technician_name,
+            'car_registration': self.car_registration,
+            'client_id': self.client_id,
+            'client': self.client.to_dict() # Inclut les détails du client
+        }
 
 # --- Routes API ---
 
@@ -211,7 +231,7 @@ def search_pieces_unified():
 
 # --- NOUVEAU: Routes pour la Main d'oeuvre ---
 
-@app.route('/api/maindoeuvre', methods=['POST', 'OPTIONS'])
+@app.route('/api/maindoeuvre', methods=['POST'])
 def add_maindoeuvre():
     data = request.get_json()
     if not data or not data.get('description') or data.get('taux_horaire') is None:
@@ -245,6 +265,40 @@ def search_maindoeuvre():
     items = query.all()
     return jsonify({'maindoeuvre': [item.to_dict() for item in items]})
 
+@app.route('/api/maindoeuvre/<int:item_id>', methods=['PUT'])
+def update_maindoeuvre(item_id):
+    item = MainDoeuvre.query.get_or_404(item_id)
+    data = request.get_json()
+    if not data or not data.get('description') or data.get('taux_horaire') is None:
+        return jsonify({'message': 'Les champs description et taux horaire sont requis'}), 400
+    
+    try:
+        taux_horaire = float(data['taux_horaire'])
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Le taux horaire doit être un nombre valide'}), 400
+
+    # Vérifie si la nouvelle description existe déjà pour un autre item
+    existing_item = MainDoeuvre.query.filter(MainDoeuvre.description == data['description'], MainDoeuvre.id != item_id).first()
+    if existing_item:
+        return jsonify({'message': 'Erreur : cette description de main d\'oeuvre existe déjà.'}), 409
+
+    item.description = data['description']
+    item.taux_horaire = taux_horaire
+    db.session.commit()
+    return jsonify({'message': 'Type de main d\'oeuvre mis à jour avec succès!', 'maindoeuvre': item.to_dict()})
+
+@app.route('/api/maindoeuvre/<int:item_id>', methods=['DELETE'])
+def delete_maindoeuvre(item_id):
+    item = MainDoeuvre.query.get_or_404(item_id)
+    
+    # Sécurité : Vérifie si ce type de main d'oeuvre est utilisé dans des factures
+    usage_count = FactureLigne.query.filter_by(description=item.description).count()
+    if usage_count > 0:
+        return jsonify({'message': f'Impossible de supprimer "{item.description}", car il est utilisé dans {usage_count} facture(s).'}), 400
+
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'message': 'Type de main d\'oeuvre supprimé avec succès!'})
 # --- Routes pour les Factures ---
 
 @app.route('/api/factures', methods=['POST'])
@@ -380,6 +434,55 @@ def generate_facture_pdf(facture_id):
         mimetype="application/pdf",
         headers={'Content-Disposition': f'attachment;filename=facture_{facture.numero_facture}.pdf'}
     )
+# Routes pour le Planning ---
+
+@app.route('/api/planning', methods=['GET'])
+def get_planning_events(): # MODIFIÉ pour filtrer par date
+    """
+    Récupère les événements du planning, filtrés par date de début et de fin si spécifiées.
+    Paramètres GET: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD)
+    """
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    query = Planning.query
+    if start_date_str:
+        query = query.filter(Planning.start_datetime >= datetime.fromisoformat(start_date_str))
+    if end_date_str:
+        # Ajouter un jour pour inclure toute la journée de fin
+        query = query.filter(Planning.start_datetime < datetime.fromisoformat(end_date_str) + timedelta(days=1))
+    
+    events = query.order_by(Planning.start_datetime.asc()).all()
+    return jsonify([event.to_dict() for event in events])
+
+@app.route('/api/planning', methods=['POST'])
+def create_planning_event():
+    """Crée un nouvel événement dans le planning."""
+    data = request.get_json()
+    if not all(k in data for k in ['client_id', 'start_datetime', 'work_description']):
+        return jsonify({'message': 'Données manquantes (client_id, start_datetime, work_description requis)'}), 400
+
+    client = Client.query.get(data['client_id'])
+    if not client:
+        return jsonify({'message': 'Client non trouvé'}), 404
+
+    try:
+        # Convertit la date du format ISO (envoyé par JS) en objet datetime Python
+        start_dt = datetime.fromisoformat(data['start_datetime'])
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Format de date invalide. Utilisez le format ISO 8601.'}), 400
+
+    new_event = Planning(
+        client_id=data['client_id'],
+        start_datetime=start_dt,
+        work_description=data['work_description'],
+        technician_name=data.get('technician_name'),
+        car_registration=data.get('car_registration')
+    )
+    db.session.add(new_event)
+    db.session.commit()
+
+    return jsonify({'message': 'Intervention planifiée avec succès!', 'event': new_event.to_dict()}), 201
 
 # --- Initialisation ---
 if __name__ == '__main__':
