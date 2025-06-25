@@ -44,16 +44,10 @@
   align-items: stretch;
   z-index: 999;
 }
-  .sidebar button {
-    width: auto;
-    margin: 0;
-    padding: 10px;
-    }
-
-    .sidebar button {
+  .sidebar button { /* Ajusté pour supprimer width: 100% */
       display: block;
-      width: 100%;
-      margin-bottom: 10px;
+      /* width: 100%; Supprimé pour permettre à fit-content de la règle générale de s'appliquer */
+      margin-bottom: 10px; /* Conserver la marge pour l'espacement */
       padding: 10px;
       border: none;
       background: #ccc;
@@ -190,6 +184,106 @@
     }
     #facture-infos-complementaires { width: 100%; padding: 6px; border: 1px solid #999; }
   </style>
+  <style>
+    /* Styles généraux pour les formulaires et les groupes */
+    .form-group {
+      margin-bottom: 10px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #999;
+      box-sizing: border-box; /* Inclut le padding et la bordure dans la largeur */
+    }
+
+    /* Styles pour la vue calendrier hebdomadaire */
+    .planning-calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        background-color: #e0e0e0;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 10px;
+    }
+
+    .planning-calendar-grid {
+        display: grid;
+        /* 1 colonne pour les heures, 7 pour les jours */
+        grid-template-columns: 60px repeat(7, 1fr);
+        grid-auto-rows: minmax(40px, auto); /* Hauteur minimale pour les cellules */
+        border: 1px solid #ddd;
+        background-color: #fff;
+    }
+
+    .calendar-grid-cell, .calendar-day-header, .calendar-time-label {
+        border: 1px solid #eee;
+        padding: 5px;
+        box-sizing: border-box;
+        text-align: center;
+    }
+
+    .calendar-day-header {
+        background-color: #f0f0f0;
+        font-weight: bold;
+        padding: 10px 5px;
+    }
+
+    .calendar-time-label {
+        background-color: #f8f8f8;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9em;
+    }
+
+    .calendar-event-slot {
+        background-color: #e6f7ff; /* Light blue for events */
+        border-left: 3px solid #66b3ff; /* Darker blue border */
+        margin: 2px;
+        padding: 3px;
+        font-size: 0.8em;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+        border-radius: 3px;
+    }
+    .calendar-event-slot:hover {
+        background-color: #cceeff;
+    }
+    /* NOUVEAU: Style de base pour tous les boutons pour un look cohérent */
+    button {
+        width: fit-content; /* Ajuste la largeur au contenu */
+        padding: 8px 16px; /* Taille par défaut des boutons */
+        font-size: 14px;   /* Taille de la police par défaut */
+        border: 1px solid #767676;
+        border-radius: 4px;
+        background-color: #e0e0e0;
+        color: #111; /* Couleur du texte sur les boutons */
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    button:hover {
+        background-color: #d5d5d5;
+        border-color: #555;
+    }
+    /* --- Fin du style de base --- */
+    h2 {
+      color: #004a99; /* Couleur spécifique pour les titres de section */
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 5px;
+    }
+  </style>
 </head>
 <body>
   <div class="tabs">
@@ -201,6 +295,7 @@
     <div onclick="afficherInterfaceAnalyse()">F6 - Analyse</div>
     <div onclick="afficherInterfacePhotos()">F7 - Photos</div>
     <div onclick="afficherInterfaceOptions()">F8 - Options</div>
+    <div onclick="afficherInterfacePlanning()">F9 - Planning</div>
   </div>
 
     <div class="main">
@@ -267,6 +362,47 @@
               <button type="button" onclick="fermerModalModificationClient()">Annuler</button>
           </div>
       
+      </div>
+
+      <!-- NOUVEAU: Interface du Planning -->
+      <div id="interface-planning" style="display: none;">
+        <h2>Planning des Interventions</h2>
+        <button onclick="ouvrirModalNouvelEvenement()">Planifier une nouvelle intervention</button>
+        <div id="planning-container" style="margin-top: 20px;">
+            <!-- Les événements du planning seront injectés ici par JavaScript -->
+        </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour un nouvel événement de planning -->
+      <div id="planning-event-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="planning-modal-title">Nouvelle Intervention</h3>
+              <div class="form-group">
+                  <label>Client</label>
+                  <div id="planning-client-details" class="client-card" style="display: none;"></div>
+                  <div id="planning-client-recherche-container">
+                      <div class="facture-search-container">
+                          <input type="text" id="planning-recherche-client-input" placeholder="Rechercher un client par nom...">
+                          <button onclick="rechercherClientPourPlanning()">Rechercher</button>
+                      </div>
+                  </div>
+              </div>
+              <div class="form-group"><label for="planning-start-datetime">Date et Heure de début</label><input type="datetime-local" id="planning-start-datetime"></div>
+              <div class="form-group"><label for="planning-work-description">Travaux à réaliser</label><textarea id="planning-work-description" rows="3"></textarea></div>
+              <div class="form-group"><label for="planning-technician-name">Technicien en charge</label><input type="text" id="planning-technician-name"></div>
+              <div class="form-group"><label for="planning-car-registration">Immatriculation du véhicule</label><input type="text" id="planning-car-registration"></div>
+              <button type="button" onclick="sauvegarderEvenement()">Sauvegarder</button>
+              <button type="button" onclick="fermerModalNouvelEvenement()">Annuler</button>
+          </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL de recherche de CLIENT pour le planning -->
+      <div id="recherche-client-planning-panel" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3>Sélectionner un client</h3>
+              <div id="resultats-recherche-client-planning"></div>
+              <button onclick="fermerRechercheClientPlanning()">Fermer</button>
+          </div>
       </div>
 
       <div id="nouvelle-facture-form">
@@ -386,6 +522,69 @@
       </div>
 
       <div id="resultats-recherche-maindoeuvre"></div>
+      <!-- NOUVEAU: Interface Options -->
+      <div id="interface-options" style="display: none;">
+        <h2>Options</h2>
+        <div style="display: flex; flex-direction: row; gap: 10px;">
+            <button onclick="afficherInterfaceFournisseurs()">Fournisseurs</button>
+            <button>Assureurs</button>
+            <button>Experts</button>
+            <button>Réglage</button>
+        </div>
+      </div>
+
+      <!-- NOUVEAU: Interface Fournisseurs -->
+      <div id="interface-fournisseurs" style="display: none;">
+        <h2>Gestion des Fournisseurs</h2>
+        <button onclick="openFournisseurModal()">Ajouter un nouveau fournisseur</button>
+        <div class="form-group" style="margin-top: 15px;">
+            <input type="text" id="recherche-fournisseur-input" onkeyup="loadFournisseurs()" placeholder="Rechercher un fournisseur par nom...">
+        </div>
+        <div id="resultats-fournisseurs" style="margin-top: 10px;">
+            <!-- Liste des fournisseurs -->
+        </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour ajouter/modifier un Fournisseur -->
+      <div id="fournisseur-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="fournisseur-modal-title">Ajouter un Fournisseur</h3>
+              <input type="hidden" id="fournisseur-id">
+              <div class="form-group"><label for="fournisseur-nom">Nom du Fournisseur</label><input type="text" id="fournisseur-nom"></div>
+              <div class="form-group"><label for="fournisseur-contact">Personne Contact</label><input type="text" id="fournisseur-contact"></div>
+              <div class="form-group"><label for="fournisseur-telephone">Téléphone</label><input type="text" id="fournisseur-telephone"></div>
+              <div class="form-group"><label for="fournisseur-email">Email</label><input type="email" id="fournisseur-email"></div>
+              <div class="form-group"><label for="fournisseur-adresse">Adresse</label><input type="text" id="fournisseur-adresse"></div>
+              <div class="form-group"><label for="fournisseur-delai-livraison">Délai moyen de livraison (jours)</label><input type="number" id="fournisseur-delai-livraison" min="0"></div>
+              <button type="button" onclick="saveFournisseur()">Sauvegarder</button>
+              <button type="button" onclick="closeFournisseurModal()">Annuler</button>
+          </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour ajouter/modifier une Remise Fournisseur -->
+      <div id="remise-fournisseur-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="remise-fournisseur-modal-title">Ajouter une Remise</h3>
+              <input type="hidden" id="remise-id">
+              <input type="hidden" id="remise-fournisseur-id">
+              <div class="form-group"><label for="remise-piece-category">Catégorie de Pièce</label><input type="text" id="remise-piece-category"></div>
+              <div class="form-group"><label for="remise-pourcentage">Pourcentage de Remise (%)</label><input type="number" id="remise-pourcentage" step="0.01" min="0" max="100"></div>
+              <button type="button" onclick="saveRemise()">Sauvegarder</button>
+              <button type="button" onclick="closeRemiseModal()">Annuler</button>
+          </div>
+      </div>
+
+      <!-- NOUVEAU: Interface de Détails Fournisseur (pour afficher les remises) -->
+      <div id="fournisseur-details-view" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="fournisseur-details-name"></h3>
+              <p>Délai de livraison moyen: <span id="fournisseur-details-delai"></span></p>
+              <h4>Remises par Catégorie</h4>
+              <button onclick="openRemiseModal(null, currentFournisseurId)">Ajouter une Remise</button>
+              <table id="remises-table" style="width:100%; border-collapse: collapse; margin-top: 10px;"><thead><tr><th>Catégorie</th><th>Remise (%)</th><th>Actions</th></tr></thead><tbody></tbody></table>
+              <button onclick="closeFournisseurDetailsView()">Fermer</button>
+          </div>
+      </div>
 
       <div id="accueil-section">
         <h2>Bienvenue dans l'application IA Gestion</h2>
@@ -412,8 +611,8 @@
         const panelIds = [
             'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces',
             'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre', 
-            'nouveau-maindoeuvre-form', 'recherche-maindoeuvre-form', 'resultats-recherche-maindoeuvre',
-            'recherche-client-form', 'resultatsRecherche', 'interface-pieces'
+            'nouveau-maindoeuvre-form', 'recherche-maindoeuvre-form', 'resultats-recherche-maindoeuvre', 'interface-planning', 'interface-fournisseurs',
+            'recherche-client-form', 'resultatsRecherche', 'interface-pieces', 'interface-options' // AJOUTÉ interface-fournisseurs
         ];
         panelIds.forEach(id => {
             const panel = document.getElementById(id);
@@ -472,6 +671,299 @@
         } else { showPanel('accueil-section', false); } // Si l'historique est vide ou n'a qu'un seul élément, on va à l'accueil
     }
 
+    // --- NOUVEAU: Logique des Fournisseurs ---
+    let currentFournisseurId = null; // Pour savoir quel fournisseur est en cours de modification/visualisation
+
+    function afficherInterfaceFournisseurs() {
+        showPanel('interface-fournisseurs');
+        loadFournisseurs();
+    }
+
+    function loadFournisseurs() {
+        const searchTerm = document.getElementById('recherche-fournisseur-input').value;
+        const container = document.getElementById('resultats-fournisseurs');
+        container.innerHTML = 'Chargement des fournisseurs...';
+
+        fetch(`/api/fournisseurs?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(fournisseurs => {
+                container.innerHTML = '';
+                if (fournisseurs.length === 0) {
+                    container.innerHTML = '<p>Aucun fournisseur trouvé.</p>';
+                    return;
+                }
+                fournisseurs.forEach(fournisseur => {
+                    const bloc = document.createElement('div');
+                    bloc.className = 'client-card'; // Réutilise le style
+                    bloc.innerHTML = `
+                        <h4>${fournisseur.nom}</h4>
+                        <p>Contact: ${fournisseur.contact_person || 'N/A'}</p>
+                        <p>Téléphone: ${fournisseur.telephone || 'N/A'}</p>
+                        <button onclick='openFournisseurModal(${JSON.stringify(fournisseur)})'>Modifier</button>
+                        <button onclick="deleteFournisseur(${fournisseur.id})">Supprimer</button>
+                        <button onclick="displayFournisseurDetails(${fournisseur.id})">Détails & Remises</button>
+                    `;
+                    container.appendChild(bloc);
+                });
+            })
+            .catch(error => {
+                console.error("Erreur lors du chargement des fournisseurs:", error);
+                container.innerHTML = '<p>Erreur lors du chargement des fournisseurs.</p>';
+            });
+    }
+
+    function openFournisseurModal(fournisseur = null) {
+        document.getElementById('fournisseur-id').value = fournisseur ? fournisseur.id : '';
+        document.getElementById('fournisseur-nom').value = fournisseur ? fournisseur.nom : '';
+        document.getElementById('fournisseur-contact').value = fournisseur ? fournisseur.contact_person : '';
+        document.getElementById('fournisseur-telephone').value = fournisseur ? fournisseur.telephone : '';
+        document.getElementById('fournisseur-email').value = fournisseur ? fournisseur.email : '';
+        document.getElementById('fournisseur-adresse').value = fournisseur ? fournisseur.adresse : '';
+        document.getElementById('fournisseur-delai-livraison').value = fournisseur ? fournisseur.delai_livraison_moyen : '';
+        document.getElementById('fournisseur-modal-title').innerText = fournisseur ? 'Modifier le Fournisseur' : 'Ajouter un Fournisseur';
+        document.getElementById('fournisseur-modal').style.display = 'flex';
+    }
+
+    function closeFournisseurModal() {
+        document.getElementById('fournisseur-modal').style.display = 'none';
+    }
+
+    function saveFournisseur() {
+        const id = document.getElementById('fournisseur-id').value;
+        const fournisseurData = {
+            nom: document.getElementById('fournisseur-nom').value,
+            contact_person: document.getElementById('fournisseur-contact').value,
+            telephone: document.getElementById('fournisseur-telephone').value,
+            email: document.getElementById('fournisseur-email').value,
+            adresse: document.getElementById('fournisseur-adresse').value,
+            delai_livraison_moyen: document.getElementById('fournisseur-delai-livraison').value ? parseInt(document.getElementById('fournisseur-delai-livraison').value) : null
+        };
+
+        if (!fournisseurData.nom) { alert("Le nom du fournisseur est obligatoire."); return; }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/fournisseurs/${id}` : '/api/fournisseurs';
+
+        fetch(url, { // L'URL est maintenant relative, ce qui résout le problème
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fournisseurData)
+        })
+        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+        .then(data => {
+            alert(data.message);
+            closeFournisseurModal();
+            loadFournisseurs();
+        })
+        .catch(error => {
+            console.error("Erreur sauvegarde fournisseur:", error);
+            alert(`Erreur: ${error.message}`);
+        });
+    }
+
+    function deleteFournisseur(id) {
+        if (!confirm("Confirmer la suppression de ce fournisseur ?")) return;
+        fetch(`/api/fournisseurs/${id}`, { method: 'DELETE' })
+            .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+            .then(data => {
+                alert(data.message);
+                loadFournisseurs();
+            })
+            .catch(error => {
+                console.error("Erreur suppression fournisseur:", error);
+                alert(`Erreur: ${error.message}`);
+            });
+    }
+
+    function displayFournisseurDetails(fournisseurId) {
+        currentFournisseurId = fournisseurId; // Stocke l'ID du fournisseur actuel
+        fetch(`/api/fournisseurs/${fournisseurId}`)
+            .then(response => response.json())
+            .then(fournisseur => {
+                document.getElementById('fournisseur-details-name').innerText = fournisseur.nom;
+                const delai = fournisseur.delai_livraison_moyen;
+                document.getElementById('fournisseur-details-delai').innerText = delai !== null ? `${delai} jours` : 'N/A';
+                loadRemisesForFournisseur(fournisseurId);
+                document.getElementById('fournisseur-details-view').style.display = 'flex';
+            })
+            .catch(error => console.error("Erreur chargement détails fournisseur:", error));
+    }
+
+    function closeFournisseurDetailsView() {
+        document.getElementById('fournisseur-details-view').style.display = 'none';
+        currentFournisseurId = null;
+    }
+
+    function loadRemisesForFournisseur(fournisseurId) {
+        const tableBody = document.querySelector('#remises-table tbody');
+        tableBody.innerHTML = '<tr><td colspan="3">Chargement des remises...</td></tr>';
+        fetch(`/api/fournisseurs/${fournisseurId}/remises`)
+            .then(response => response.json())
+            .then(remises => {
+                tableBody.innerHTML = '';
+                if (remises.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="3">Aucune remise configurée.</td></tr>';
+                    return;
+                }
+                remises.forEach(remise => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `<td>${remise.piece_category}</td><td>${remise.remise_pourcentage}%</td><td><button onclick="alert('Modifier/Supprimer remise non implémenté')">Actions</button></td>`;
+                });
+            })
+            .catch(error => { console.error("Erreur chargement remises:", error); tableBody.innerHTML = '<tr><td colspan="3">Erreur de chargement des remises.</td></tr>'; });
+    }
+
+    function openRemiseModal(remise = null, fournisseurId = null) {
+        document.getElementById('remise-id').value = remise ? remise.id : '';
+        document.getElementById('remise-fournisseur-id').value = fournisseurId || currentFournisseurId;
+        document.getElementById('remise-piece-category').value = remise ? remise.piece_category : '';
+        document.getElementById('remise-pourcentage').value = remise ? remise.remise_pourcentage : '';
+        document.getElementById('remise-fournisseur-modal-title').innerText = remise ? 'Modifier la Remise' : 'Ajouter une Remise';
+        document.getElementById('remise-fournisseur-modal').style.display = 'flex';
+    }
+
+    function closeRemiseModal() {
+        document.getElementById('remise-fournisseur-modal').style.display = 'none';
+    }
+
+    function saveRemise() {
+        const id = document.getElementById('remise-id').value;
+        const fournisseurId = document.getElementById('remise-fournisseur-id').value;
+        const remiseData = {
+            piece_category: document.getElementById('remise-piece-category').value,
+            remise_pourcentage: parseFloat(document.getElementById('remise-pourcentage').value)
+        };
+
+        if (!remiseData.piece_category || isNaN(remiseData.remise_pourcentage)) { alert("Catégorie et pourcentage sont obligatoires."); return; }
+
+        const method = id ? 'PUT' : 'POST'; // PUT pour modifier, POST pour ajouter
+        const url = id ? `/api/remises_fournisseur/${id}` : `/api/fournisseurs/${fournisseurId}/remises`;
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(remiseData)
+        })
+        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+        .then(data => {
+            alert(data.message);
+            closeRemiseModal();
+            loadRemisesForFournisseur(fournisseurId); // Rafraîchit la liste des remises
+        })
+        .catch(error => {
+            console.error("Erreur sauvegarde remise:", error);
+            alert(`Erreur: ${error.message}`);
+        });
+    }
+
+    // --- Logique du Planning ---
+    let planningEventActuel = { clientId: null };
+
+    function afficherInterfacePlanning() {
+        showPanel('interface-planning'); // F9 - Planning
+        chargerEvenementsPlanning();
+    }
+
+    function chargerEvenementsPlanning() {
+        const container = document.getElementById('planning-container');
+        container.innerHTML = 'Chargement...';
+        fetch('/api/planning')
+            .then(response => response.json())
+            .then(events => {
+                container.innerHTML = '';
+                if (events.length === 0) {
+                    container.innerHTML = '<p>Aucune intervention planifiée.</p>';
+                    return;
+                }
+                events.forEach(event => {
+                    const bloc = document.createElement('div');
+                    bloc.className = 'client-card'; // On réutilise le style
+                    const startDate = new Date(event.start_datetime);
+                    bloc.innerHTML = `
+                        <h4>${event.work_description}</h4>
+                        <p><strong>Client :</strong> ${event.client.prenom || ''} ${event.client.nom}</p>
+                        <p><strong>Date :</strong> ${startDate.toLocaleDateString('fr-FR')} à ${startDate.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
+                        <p><strong>Technicien :</strong> ${event.technician_name || 'Non assigné'}</p>
+                        <p><strong>Immatriculation :</strong> ${event.car_registration || 'N/A'}</p>
+                    `;
+                    container.appendChild(bloc);
+                });
+            })
+            .catch(error => {
+                console.error("Erreur lors du chargement du planning:", error);
+                container.innerHTML = '<p>Erreur de chargement du planning.</p>';
+            });
+    }
+
+    function ouvrirModalNouvelEvenement() {
+        planningEventActuel = { clientId: null };
+        document.getElementById('planning-modal-title').innerText = 'Nouvelle Intervention';
+        document.getElementById('planning-client-details').style.display = 'none';
+        document.getElementById('planning-client-recherche-container').style.display = 'block';
+        document.getElementById('planning-recherche-client-input').value = '';
+        document.getElementById('planning-start-datetime').value = '';
+        document.getElementById('planning-work-description').value = '';
+        document.getElementById('planning-technician-name').value = '';
+        document.getElementById('planning-car-registration').value = '';
+        document.getElementById('planning-event-modal').style.display = 'flex';
+    }
+
+    function fermerModalNouvelEvenement() {
+        document.getElementById('planning-event-modal').style.display = 'none';
+    }
+
+    function rechercherClientPourPlanning() {
+        const searchTerm = document.getElementById('planning-recherche-client-input').value;
+        if (searchTerm.length < 2) { return; }
+        const resultsContainer = document.getElementById('resultats-recherche-client-planning');
+        fetch(`/api/clients/search?q=${searchTerm}`)
+            .then(response => response.json())
+            .then(clients => {
+                resultsContainer.innerHTML = '';
+                if (clients.length === 0) {
+                    resultsContainer.innerHTML = '<p>Aucun client trouvé.</p>';
+                } else {
+                    clients.forEach(client => {
+                        const bloc = document.createElement("div");
+                        bloc.className = "resultat-recherche-facture-item";
+                        bloc.innerHTML = `<p><strong>${client.nom} ${client.prenom || ''}</strong> - ${client.ville || ''}</p>`;
+                        bloc.onclick = () => selectionnerClientPourPlanning(client);
+                        resultsContainer.appendChild(bloc);
+                    });
+                }
+                document.getElementById('recherche-client-planning-panel').style.display = 'flex';
+            }).catch(error => console.error("Erreur de recherche client:", error));
+    }
+
+    function fermerRechercheClientPlanning() {
+        document.getElementById('recherche-client-planning-panel').style.display = 'none';
+    }
+
+    function selectionnerClientPourPlanning(client) {
+        planningEventActuel.clientId = client.id;
+        const detailsContainer = document.getElementById('planning-client-details');
+        detailsContainer.innerHTML = `<strong>${client.nom} ${client.prenom || ''}</strong><br>${client.adresse || ''}<br>${client.code_postal || ''} ${client.ville || ''}`;
+        detailsContainer.style.display = 'block';
+        document.getElementById('planning-client-recherche-container').style.display = 'none';
+        fermerRechercheClientPlanning();
+    }
+
+    function sauvegarderEvenement() {
+        if (!planningEventActuel.clientId) { alert("Veuillez sélectionner un client."); return; }
+        const eventData = {
+            client_id: planningEventActuel.clientId,
+            start_datetime: document.getElementById('planning-start-datetime').value,
+            work_description: document.getElementById('planning-work-description').value,
+            technician_name: document.getElementById('planning-technician-name').value,
+            car_registration: document.getElementById('planning-car-registration').value,
+        };
+        if (!eventData.start_datetime || !eventData.work_description) { alert("La date/heure et la description sont obligatoires."); return; }
+        fetch('/api/planning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(eventData) })
+            .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+            .then(data => { alert(data.message); fermerModalNouvelEvenement(); chargerEvenementsPlanning(); })
+            .catch(error => { console.error("Erreur sauvegarde événement:", error); alert(`Erreur: ${error.message}`); });
+    }
+
     // --- Logique de la nouvelle facture ---
     let factureActuelle = { clientId: null, lignes: [], tvaTaux: 0.20 };
 
@@ -504,7 +996,7 @@
 
         const resultsContainer = document.getElementById('resultats-recherche-client-facture');
 
-        fetch(`http://127.0.0.1:5000/api/clients/search?q=${searchTerm}`)
+        fetch(`/api/clients/search?q=${searchTerm}`)
             .then(response => response.json())
             .then(clients => {
                 resultsContainer.innerHTML = '';
@@ -609,7 +1101,7 @@
             return;
         }
 
-        fetch(`http://127.0.0.1:5000/api/pieces/search?q=${searchTerm}`)
+        fetch(`/api/pieces/search?q=${searchTerm}`)
             .then(response => response.json())
             .then(pieces => {
                 resultsContainer.innerHTML = '';
@@ -654,10 +1146,15 @@
             return;
         }
 
-        fetch(`http://127.0.0.1:5000/api/maindoeuvre/search?q=${searchTerm}`)
+        fetch(`/api/maindoeuvre/search`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: searchTerm })
+        })
             .then(response => response.json())
-            .then(items => {
+            .then(data => {
                 resultsContainer.innerHTML = '';
+                const items = data.maindoeuvre; // L'API renvoie un objet {maindoeuvre: [...]}
                 items.forEach(item => {
                     const div = document.createElement('div');
                     div.className = 'resultat-recherche-facture-item';
@@ -697,7 +1194,7 @@
 
         console.log("Tentative de sauvegarde avec les données suivantes :", JSON.stringify(data_a_envoyer, null, 2));
 
-        fetch("http://127.0.0.1:5000/api/factures", {
+        fetch("/api/factures", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data_a_envoyer)
@@ -732,7 +1229,7 @@
         });
     }
 
-    function imprimerFacture(factureId) { window.open(`http://127.0.0.1:5000/api/factures/${factureId}/pdf`); }
+    function imprimerFacture(factureId) { window.open(`/api/factures/${factureId}/pdf`); }
 
     function afficherInterfaceFactures() {
       showPanel('facture-options'); // F2 - Factures
@@ -751,7 +1248,7 @@
             return;
         }
 
-        fetch(`http://127.0.0.1:5000/api/factures/search?q=${searchTerm}`)
+        fetch(`/api/factures/search?q=${searchTerm}`)
             .then(response => {
                 if (!response.ok) throw new Error('Erreur réseau lors de la recherche.');
                 return response.json();
@@ -830,7 +1327,7 @@
     function rechercherClient() {
         const searchTerm = document.getElementById("recherche-client-input").value;
         // Note: L'API backend doit être adaptée pour gérer une recherche GET sur /api/clients/search?q=...
-        fetch(`http://127.0.0.1:5000/api/clients/search?q=${encodeURIComponent(searchTerm)}`)
+        fetch(`/api/clients/search?q=${encodeURIComponent(searchTerm)}`)
             .then(response => {
                 if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
                 return response.json();
@@ -898,7 +1395,7 @@
             pays: document.getElementById("edit-pays").value
         };
 
-        fetch(`http://127.0.0.1:5000/api/clients/${clientId}`, {
+        fetch(`/api/clients/${clientId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(clientData)
@@ -924,7 +1421,7 @@
             pays: document.getElementById("pays").value
         };
 
-        fetch("http://127.0.0.1:5000/api/clients", {
+        fetch("/api/clients", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(client)
@@ -939,7 +1436,7 @@
 
     function supprimerClient(id) {
         if (!confirm("Confirmer la suppression de ce client ? Cette action est irréversible.")) return;
-        fetch(`http://127.0.0.1:5000/api/clients/${id}`, {
+        fetch(`/api/clients/${id}`, {
             method: "DELETE"
         })
         .then(response => response.json())
@@ -960,7 +1457,7 @@
         prix_vente: document.getElementById('piece-prix-vente').value  // Idem pour prix_vente
       };
 
-      fetch("http://127.0.0.1:5000/api/pieces", {
+      fetch("/api/pieces", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -984,7 +1481,7 @@
       const designation = document.getElementById('recherche-piece-designation').value;
       const ref = document.getElementById('recherche-piece-ref').value;
 
-      fetch("http://127.0.0.1:5000/api/pieces/search", {
+      fetch("/api/pieces/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ designation, ref })
@@ -1018,7 +1515,7 @@
     }
 
     function testerBackendPieces() {
-     fetch("http://127.0.0.1:5000/api/pieces")
+     fetch("/api/pieces")
     .then(response => response.json())
     .then(data => alert("Réponse backend : " + data.message))
     .catch(error => alert("Erreur de connexion au backend : " + error));
@@ -1040,7 +1537,7 @@
         return;
       }
 
-      fetch("http://127.0.0.1:5000/api/maindoeuvre", {
+      fetch("/api/maindoeuvre", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(maindoeuvre)
@@ -1070,7 +1567,7 @@
 
     function rechercherMainDoeuvre() {
       const description = document.getElementById('recherche-maindoeuvre-description').value;
-      fetch("http://127.0.0.1:5000/api/maindoeuvre/search", {
+      fetch("/api/maindoeuvre/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description })
@@ -1105,7 +1602,7 @@
 
     function supprimerMainDoeuvre(id) {
         if (!confirm("Confirmer la suppression de ce type de main d'oeuvre ?")) return;
-        fetch(`http://127.0.0.1:5000/api/maindoeuvre/${id}`, {
+        fetch(`/api/maindoeuvre/${id}`, {
             method: "DELETE"
         })
         .then(response => {
@@ -1157,7 +1654,7 @@
             return;
         }
 
-        fetch(`http://127.0.0.1:5000/api/maindoeuvre/${id}`, {
+        fetch(`/api/maindoeuvre/${id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
@@ -1178,7 +1675,7 @@
         });
     }
 
-    function afficherInterfaceOptions() { alert("Section 'Options' non implémentée."); } // F8 - Options
+    function afficherInterfaceOptions() { showPanel('interface-options'); } // F8 - Options
 
     // --- GESTION DES RACCOURCIS CLAVIER (F1, F2, etc.) ---
     document.addEventListener('keydown', function(event) {
@@ -1207,6 +1704,7 @@
             case 'F6': event.preventDefault(); afficherInterfaceAnalyse(); break;
             case 'F7': event.preventDefault(); afficherInterfacePhotos(); break;
             case 'F8': event.preventDefault(); afficherInterfaceOptions(); break;
+            case 'F9': event.preventDefault(); afficherInterfacePlanning(); break;
             case 'Escape': goBack(); break; // Utilise 'Escape' pour la touche Échap
         }
     });

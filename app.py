@@ -3,13 +3,19 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_
 from flask_cors import CORS
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime
+from datetime import datetime, timedelta
 from fpdf import FPDF
 
 # --- Configuration ---
 app = Flask(__name__)
 # Configuration CORS plus explicite pour autoriser toutes les origines sur les routes /api/
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# NOUVEAU: Route pour servir le fichier index.html
+from flask import send_from_directory
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html') # Assurez-vous que index.html est dans le même dossier que app.py
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gestion.db' # Nom de votre base de données
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -117,6 +123,31 @@ class Planning(db.Model):
             'client_id': self.client_id,
             'client': self.client.to_dict() # Inclut les détails du client
         }
+
+# NOUVEAU: Modèle pour les Fournisseurs
+class Fournisseur(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False, unique=True)
+    contact_person = db.Column(db.String(100))
+    telephone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    adresse = db.Column(db.String(200))
+    delai_livraison_moyen = db.Column(db.Integer) # Délai en jours
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+# NOUVEAU: Modèle pour les Remises Fournisseur
+class RemiseFournisseur(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fournisseur_id = db.Column(db.Integer, db.ForeignKey('fournisseur.id'), nullable=False)
+    piece_category = db.Column(db.String(100), nullable=False) # Ex: "Moteur", "Freinage", "Carrosserie"
+    remise_pourcentage = db.Column(db.Float, nullable=False)
+
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('remises', lazy=True))
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 # --- Routes API ---
 
@@ -484,6 +515,97 @@ def create_planning_event():
 
     return jsonify({'message': 'Intervention planifiée avec succès!', 'event': new_event.to_dict()}), 201
 
+# --- NOUVEAU: Routes pour les Fournisseurs ---
+
+@app.route('/api/fournisseurs', methods=['GET'])
+def get_fournisseurs():
+    search_term = request.args.get('q', '')
+    query = Fournisseur.query
+    if search_term:
+        query = query.filter(Fournisseur.nom.ilike(f'%{search_term}%'))
+    fournisseurs = query.order_by(Fournisseur.nom.asc()).all()
+    return jsonify([f.to_dict() for f in fournisseurs])
+
+@app.route('/api/fournisseurs', methods=['POST'])
+def add_fournisseur():
+    data = request.get_json()
+    
+    # Validation plus robuste pour éviter les crashs si le JSON est invalide ou vide
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+    if not data.get('nom'):
+        return jsonify({'message': 'Le nom du fournisseur est requis'}), 400
+    
+    if Fournisseur.query.filter_by(nom=data['nom']).first():
+        return jsonify({'message': 'Un fournisseur avec ce nom existe déjà'}), 409
+
+    new_fournisseur = Fournisseur(
+        nom=data['nom'],
+        contact_person=data.get('contact_person'),
+        telephone=data.get('telephone'),
+        email=data.get('email'),
+        adresse=data.get('adresse'),
+        delai_livraison_moyen=data.get('delai_livraison_moyen')
+    )
+    db.session.add(new_fournisseur)
+    db.session.commit()
+    return jsonify({'message': 'Fournisseur ajouté avec succès!', 'fournisseur': new_fournisseur.to_dict()}), 201
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>', methods=['GET'])
+def get_fournisseur(fournisseur_id):
+    fournisseur = Fournisseur.query.get_or_404(fournisseur_id)
+    return jsonify(fournisseur.to_dict())
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>', methods=['PUT'])
+def update_fournisseur(fournisseur_id):
+    fournisseur = Fournisseur.query.get_or_404(fournisseur_id)
+    data = request.get_json()
+
+    # Validation plus robuste pour éviter les crashs
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+
+    # Validation robuste : Vérifier la présence du nom et son unicité
+    new_nom = data.get('nom')
+    if not new_nom:
+        return jsonify({'message': 'Le nom du fournisseur est requis'}), 400
+
+    if Fournisseur.query.filter(Fournisseur.nom == new_nom, Fournisseur.id != fournisseur_id).first():
+        return jsonify({'message': 'Un autre fournisseur avec ce nom existe déjà'}), 409
+
+    fournisseur.nom = new_nom
+    fournisseur.contact_person = data.get('contact_person', fournisseur.contact_person)
+    fournisseur.telephone = data.get('telephone', fournisseur.telephone)
+    fournisseur.email = data.get('email', fournisseur.email)
+    fournisseur.adresse = data.get('adresse', fournisseur.adresse)
+    fournisseur.delai_livraison_moyen = data.get('delai_livraison_moyen', fournisseur.delai_livraison_moyen)
+    db.session.commit()
+    return jsonify({'message': 'Fournisseur mis à jour avec succès!', 'fournisseur': fournisseur.to_dict()})
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>', methods=['DELETE'])
+def delete_fournisseur(fournisseur_id):
+    fournisseur = Fournisseur.query.get_or_404(fournisseur_id)
+    db.session.delete(fournisseur)
+    db.session.commit()
+    return jsonify({'message': 'Fournisseur supprimé avec succès!'})
+
+# --- NOUVEAU: Routes pour les Remises Fournisseur ---
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>/remises', methods=['GET'])
+def get_fournisseur_remises(fournisseur_id):
+    remises = RemiseFournisseur.query.filter_by(fournisseur_id=fournisseur_id).all()
+    return jsonify([r.to_dict() for r in remises])
+
+@app.route('/api/fournisseurs/<int:fournisseur_id>/remises', methods=['POST'])
+def add_fournisseur_remise(fournisseur_id):
+    data = request.get_json()
+    if not all(k in data for k in ['piece_category', 'remise_pourcentage']):
+        return jsonify({'message': 'Catégorie de pièce et pourcentage de remise sont requis'}), 400
+    new_remise = RemiseFournisseur(fournisseur_id=fournisseur_id, **data)
+    db.session.add(new_remise)
+    db.session.commit()
+    return jsonify({'message': 'Remise ajoutée avec succès!', 'remise': new_remise.to_dict()}), 201
+
 # --- Initialisation ---
 if __name__ == '__main__':
     # Crée les tables dans la base de données si elles n'existent pas
@@ -491,4 +613,4 @@ if __name__ == '__main__':
         db.create_all()
     
     # Lance le serveur de développement
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='127.0.0.1', port=8000) # L'application sera accessible depuis d'autres machines sur le réseau
