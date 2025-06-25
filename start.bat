@@ -1,10 +1,10 @@
 @echo off
-REM Ce script lance le serveur Python et ouvre le navigateur.
+REM Ce script lance le serveur Python en arriere-plan et ouvre le navigateur.
 
 echo Lancement du serveur Flask...
-REM La commande "start" lance le serveur dans une nouvelle fenetre de terminal
-REM ce qui permet a ce script de continuer son execution.
-start "IA Gestion - Serveur" cmd /k python app.py
+REM Utilisation de "start /B" pour lancer le processus en arriere-plan dans la meme fenetre,
+REM et "pythonw.exe" pour qu'il n'ait pas de console. La combinaison le rend invisible.
+start /B "" pythonw.exe app.py
 
 echo Attente de 3 secondes pour que le serveur demarre...
 timeout /t 3 /nobreak > nul
