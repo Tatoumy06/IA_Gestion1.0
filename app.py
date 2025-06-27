@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_
 from flask_cors import CORS
@@ -11,12 +11,16 @@ app = Flask(__name__)
 # Configuration CORS plus explicite pour autoriser toutes les origines sur les routes /api/
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# NOUVEAU: Route pour servir le fichier index.html
-from flask import send_from_directory
+# Route pour servir le fichier index.html
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html') # Assurez-vous que index.html est dans le même dossier que app.py
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gestion.db' # Nom de votre base de données
+
+# NOUVEAU: Route pour servir les images du dossier 'drawable'
+@app.route('/drawable/<path:filename>')
+def serve_drawable(filename):
+    return send_from_directory('drawable', filename)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gestion.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -145,6 +149,32 @@ class RemiseFournisseur(db.Model):
     remise_pourcentage = db.Column(db.Float, nullable=False)
 
     fournisseur = db.relationship('Fournisseur', backref=db.backref('remises', lazy=True))
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+# NOUVEAU: Modèle pour les Assureurs
+class Assureur(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False, unique=True)
+    contact_person = db.Column(db.String(100))
+    telephone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    adresse = db.Column(db.String(200))
+    delai_paiement_moyen = db.Column(db.Integer) # Délai en jours
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+# NOUVEAU: Modèle pour les Experts
+class Expert(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False, unique=True)
+    contact_person = db.Column(db.String(100))
+    telephone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    adresse = db.Column(db.String(200))
+    delai_reponse_moyen = db.Column(db.Integer) # Délai en jours
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -606,6 +636,134 @@ def add_fournisseur_remise(fournisseur_id):
     db.session.commit()
     return jsonify({'message': 'Remise ajoutée avec succès!', 'remise': new_remise.to_dict()}), 201
 
+# --- NOUVEAU: Routes pour les Assureurs ---
+
+@app.route('/api/assureurs', methods=['GET'])
+def get_assureurs():
+    search_term = request.args.get('q', '')
+    query = Assureur.query
+    if search_term:
+        query = query.filter(Assureur.nom.ilike(f'%{search_term}%'))
+    assureurs = query.order_by(Assureur.nom.asc()).all()
+    return jsonify([a.to_dict() for a in assureurs])
+
+@app.route('/api/assureurs', methods=['POST'])
+def add_assureur():
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+    if not data.get('nom'):
+        return jsonify({'message': 'Le nom de l\'assureur est requis'}), 400
+    
+    if Assureur.query.filter_by(nom=data['nom']).first():
+        return jsonify({'message': 'Un assureur avec ce nom existe déjà'}), 409
+
+    new_assureur = Assureur(
+        nom=data['nom'],
+        contact_person=data.get('contact_person'),
+        telephone=data.get('telephone'),
+        email=data.get('email'),
+        adresse=data.get('adresse'),
+        delai_paiement_moyen=data.get('delai_paiement_moyen')
+    )
+    db.session.add(new_assureur)
+    db.session.commit()
+    return jsonify({'message': 'Assureur ajouté avec succès!', 'assureur': new_assureur.to_dict()}), 201
+
+@app.route('/api/assureurs/<int:assureur_id>', methods=['PUT'])
+def update_assureur(assureur_id):
+    assureur = Assureur.query.get_or_404(assureur_id)
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+
+    new_nom = data.get('nom')
+    if not new_nom:
+        return jsonify({'message': 'Le nom de l\'assureur est requis'}), 400
+
+    if Assureur.query.filter(Assureur.nom == new_nom, Assureur.id != assureur_id).first():
+        return jsonify({'message': 'Un autre assureur avec ce nom existe déjà'}), 409
+
+    assureur.nom = new_nom
+    assureur.contact_person = data.get('contact_person', assureur.contact_person)
+    assureur.telephone = data.get('telephone', assureur.telephone)
+    assureur.email = data.get('email', assureur.email)
+    assureur.adresse = data.get('adresse', assureur.adresse)
+    assureur.delai_paiement_moyen = data.get('delai_paiement_moyen', assureur.delai_paiement_moyen)
+    db.session.commit()
+    return jsonify({'message': 'Assureur mis à jour avec succès!', 'assureur': assureur.to_dict()})
+
+@app.route('/api/assureurs/<int:assureur_id>', methods=['DELETE'])
+def delete_assureur(assureur_id):
+    assureur = Assureur.query.get_or_404(assureur_id)
+    db.session.delete(assureur)
+    db.session.commit()
+    return jsonify({'message': 'Assureur supprimé avec succès!'})
+
+# --- NOUVEAU: Routes pour les Experts ---
+
+@app.route('/api/experts', methods=['GET'])
+def get_experts():
+    search_term = request.args.get('q', '')
+    query = Expert.query
+    if search_term:
+        query = query.filter(Expert.nom.ilike(f'%{search_term}%'))
+    experts = query.order_by(Expert.nom.asc()).all()
+    return jsonify([e.to_dict() for e in experts])
+
+@app.route('/api/experts', methods=['POST'])
+def add_expert():
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+    if not data.get('nom'):
+        return jsonify({'message': 'Le nom de l\'expert est requis'}), 400
+    
+    if Expert.query.filter_by(nom=data['nom']).first():
+        return jsonify({'message': 'Un expert avec ce nom existe déjà'}), 409
+
+    new_expert = Expert(
+        nom=data['nom'],
+        contact_person=data.get('contact_person'),
+        telephone=data.get('telephone'),
+        email=data.get('email'),
+        adresse=data.get('adresse'),
+        delai_reponse_moyen=data.get('delai_reponse_moyen')
+    )
+    db.session.add(new_expert)
+    db.session.commit()
+    return jsonify({'message': 'Expert ajouté avec succès!', 'expert': new_expert.to_dict()}), 201
+
+@app.route('/api/experts/<int:expert_id>', methods=['PUT'])
+def update_expert(expert_id):
+    expert = Expert.query.get_or_404(expert_id)
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({'message': 'Données JSON invalides ou vides fournies'}), 400
+
+    new_nom = data.get('nom')
+    if not new_nom:
+        return jsonify({'message': 'Le nom de l\'expert est requis'}), 400
+
+    if Expert.query.filter(Expert.nom == new_nom, Expert.id != expert_id).first():
+        return jsonify({'message': 'Un autre expert avec ce nom existe déjà'}), 409
+
+    expert.nom = new_nom
+    expert.contact_person = data.get('contact_person', expert.contact_person)
+    expert.telephone = data.get('telephone', expert.telephone)
+    expert.email = data.get('email', expert.email)
+    expert.adresse = data.get('adresse', expert.adresse)
+    expert.delai_reponse_moyen = data.get('delai_reponse_moyen', expert.delai_reponse_moyen)
+    db.session.commit()
+    return jsonify({'message': 'Expert mis à jour avec succès!', 'expert': expert.to_dict()})
+
+@app.route('/api/experts/<int:expert_id>', methods=['DELETE'])
+def delete_expert(expert_id):
+    expert = Expert.query.get_or_404(expert_id)
+    db.session.delete(expert)
+    db.session.commit()
+    return jsonify({'message': 'Expert supprimé avec succès!'})
+
 # --- Initialisation ---
 if __name__ == '__main__':
     # Crée les tables dans la base de données si elles n'existent pas
@@ -613,4 +771,4 @@ if __name__ == '__main__':
         db.create_all()
     
     # Lance le serveur de développement
-    app.run(debug=True, host='127.0.0.1', port=8000) # L'application sera accessible depuis d'autres machines sur le réseau
+    app.run(debug=False, host='127.0.0.1', port=8000) # debug=False pour un fonctionnement stable en arriere-plan

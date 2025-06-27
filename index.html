@@ -31,28 +31,6 @@
       padding: 20px;
     }
 
-  .sidebar {
-  position: fixed;
-  top: 50px; /* distance du haut */
-  right: 0; /* collé au bord droit */
-  width: 180px;
-  background: #eee;
-  padding: 20px;
-  border-left: 1px solid lightskyblue;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  z-index: 999;
-}
-  .sidebar button { /* Ajusté pour supprimer width: 100% */
-      display: block;
-      /* width: 100%; Supprimé pour permettre à fit-content de la règle générale de s'appliquer */
-      margin-bottom: 10px; /* Conserver la marge pour l'espacement */
-      padding: 10px;
-      border: none;
-      background: #ccc;
-      cursor: pointer;
-    }
     .form-group {
       margin-bottom: 10px;
     }
@@ -283,25 +261,88 @@
       border-bottom: 1px solid #ccc;
       padding-bottom: 5px;
     }
+    /* NOUVEAU: Styles pour le tableau de bord comptable */
+    .dashboard-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    .dashboard-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        flex-grow: 1;
+        text-align: center;
+    }
+    .dashboard-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #007bff;
+    }
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .dashboard-widget {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .compta-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    .compta-table th, .compta-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .compta-table th { background-color: #f2f2f2; }
   </style>
 </head>
 <body>
-  <div class="tabs">
-    <div onclick="afficherAccueil()">F1 - Accueil</div>
-    <div onclick="afficherInterfaceFactures()">F2 - Factures</div>
-    <div onclick="afficherOptionsClient()">F3 - Clients</div>
-    <div onclick="afficherInterfacePieces()">F4 - Pièces</div>
-    <div onclick="afficherInterfaceMaindoeuvre()">F5 - Main d'oeuvre</div>
-    <div onclick="afficherInterfaceAnalyse()">F6 - Analyse</div>
-    <div onclick="afficherInterfacePhotos()">F7 - Photos</div>
-    <div onclick="afficherInterfaceOptions()">F8 - Options</div>
-    <div onclick="afficherInterfacePlanning()">F9 - Planning</div>
+  <div class="tabs"> 
+    <div onclick="afficherAccueil()">F1 - Accueil</div> 
+    <div onclick="afficherInterfaceFactures()">F2 - OR/Factures</div> 
+    <div onclick="afficherOptionsClient()">F3 - Clients</div> 
+    <div onclick="afficherInterfacePieces()">F4 - Pièces</div> 
+    <div onclick="afficherInterfaceMaindoeuvre()">F5 - Main d'oeuvre</div> 
+    <div onclick="afficherInterfaceAnalyse()">F6 - Analyse</div> 
+    <div onclick="afficherInterfacePhotos()">F7 - Photos</div> 
+    <div onclick="afficherInterfacePlanning()">F8 - Planning</div> 
+    <div onclick="afficherInterfaceNotifications()">F9 - Notifications</div> 
+    <div onclick="afficherInterfaceParametre()">F10 - Paramètre</div> 
+    <div onclick="afficherInterfaceOptions()">F11 - Option</div> 
+    <div onclick="afficherInterfaceComptabilite()">Comptabilité</div> 
+
   </div>
 
     <div class="main">
     <div class="content">
+        <!-- MODIFIÉ: Contenu de l'interface de comptabilité -->
+        <div id="interface-comptabilite" style="display: none;">
+            <h2>Tableau de Bord Comptable</h2>
+            <button onclick="chargerDonneesComptabilite()">Rafraîchir les données</button>
+            
+            <div class="dashboard-container" style="margin-top: 20px;">
+                <div class="dashboard-card">
+                    <h3>Chiffre d'Affaires (Mois en cours)</h3>
+                    <p id="ca-mois-total" class="dashboard-value">Chargement...</p>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-widget"><h3>Dépenses par Fournisseur (sur pièces facturées)</h3><div id="depenses-fournisseur-container">Chargement...</div></div>
+                <div class="dashboard-widget"><h3>Chiffre d'Affaires par Famille de Pièces</h3><div id="ca-famille-piece-container">Chargement...</div></div>
+            </div>
+        </div>
+
       <div id="facture-options">
-        <h2>Facturation</h2>
+        <h2>Facture</h2>
         <button onclick="afficherFormulaireNouvelleFacture()">Nouvelle facture</button>
         <button onclick="afficherFormulaireRechercheFacture()">Recherche de facture</button>
       </div>
@@ -364,14 +405,19 @@
       
       </div>
 
-      <!-- NOUVEAU: Interface du Planning -->
+           <!-- NOUVEAU: Interface du Planning -->
       <div id="interface-planning" style="display: none;">
-        <h2>Planning des Interventions</h2>
-        <button onclick="ouvrirModalNouvelEvenement()">Planifier une nouvelle intervention</button>
-        <div id="planning-container" style="margin-top: 20px;">
-            <!-- Les événements du planning seront injectés ici par JavaScript -->
+        <h2>Planning de la semaine</h2>
+        <div class="planning-calendar-header">
+            <button id="planning-prev-week">&lt; Semaine Précédente</button>
+            <h3 id="planning-current-week"></h3>
+            <button id="planning-next-week">Semaine Suivante &gt;</button>
+        </div>
+        <div id="planning-calendar-grid" class="planning-calendar-grid">
+            <!-- Les en-têtes de jour et les cellules seront générés par JavaScript -->
         </div>
       </div>
+
 
       <!-- NOUVEAU: MODAL/PANEL pour un nouvel événement de planning -->
       <div id="planning-event-modal" class="modal-overlay" style="display: none;">
@@ -488,7 +534,8 @@
         <div class="form-group"><label for="piece-designation">Désignation</label><input type="text" id="piece-designation"></div>
         <div class="form-group"><label for="piece-ref">Réf.</label><input type="text" id="piece-ref"></div>
         <div class="form-group"><label for="piece-prix-achat">Prix d'achat unitaire HT</label><input type="number" id="piece-prix-achat" step="0.01" placeholder="0.00"></div>
-        <div class="form-group"><label for="piece-prix-vente">Prix de vente HT</label><input type="number" id="piece-prix-vente" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label for="piece-prix-vente">Prix de vente HT</label><input type="number" id="piece-prix-vente" step="0.01" placeholder="0.00" required></div>
+        <div class="form-group"><label for="piece-fournisseur">Fournisseur</label><select id="piece-fournisseur" required><option value="">-- Sélectionner un fournisseur --</option></select></div>
         <button onclick="ajouterPiece()">Sauvegarder</button>
       </div>
 
@@ -527,8 +574,8 @@
         <h2>Options</h2>
         <div style="display: flex; flex-direction: row; gap: 10px;">
             <button onclick="afficherInterfaceFournisseurs()">Fournisseurs</button>
-            <button>Assureurs</button>
-            <button>Experts</button>
+            <button onclick="afficherInterfaceAssureurs()">Assureurs</button>
+            <button onclick="afficherInterfaceExperts()">Experts</button>
             <button>Réglage</button>
         </div>
       </div>
@@ -586,18 +633,68 @@
           </div>
       </div>
 
+      <!-- NOUVEAU: Interface Assureurs -->
+      <div id="interface-assureurs" style="display: none;">
+        <h2>Gestion des Assureurs</h2>
+        <button onclick="openAssureurModal()">Ajouter un nouvel assureur</button>
+        <div class="form-group" style="margin-top: 15px;">
+            <input type="text" id="recherche-assureur-input" onkeyup="loadAssureurs()" placeholder="Rechercher un assureur par nom...">
+        </div>
+        <div id="resultats-assureurs" style="margin-top: 10px;">
+            <!-- Liste des assureurs -->
+        </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour ajouter/modifier un Assureur -->
+      <div id="assureur-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="assureur-modal-title">Ajouter un Assureur</h3>
+              <input type="hidden" id="assureur-id">
+              <div class="form-group"><label for="assureur-nom">Nom de l'Assureur</label><input type="text" id="assureur-nom"></div>
+              <div class="form-group"><label for="assureur-contact">Personne Contact</label><input type="text" id="assureur-contact"></div>
+              <div class="form-group"><label for="assureur-telephone">Téléphone</label><input type="text" id="assureur-telephone"></div>
+              <div class="form-group"><label for="assureur-email">Email</label><input type="email" id="assureur-email"></div>
+              <div class="form-group"><label for="assureur-adresse">Adresse</label><input type="text" id="assureur-adresse"></div>
+              <div class="form-group"><label for="assureur-delai-paiement">Délai moyen de paiement (jours)</label><input type="number" id="assureur-delai-paiement" min="0"></div>
+              <button type="button" onclick="saveAssureur()">Sauvegarder</button>
+              <button type="button" onclick="closeAssureurModal()">Annuler</button>
+          </div>
+      </div>
+
+      <!-- NOUVEAU: Interface Experts -->
+      <div id="interface-experts" style="display: none;">
+        <h2>Gestion des Experts</h2>
+        <button onclick="openExpertModal()">Ajouter un nouvel expert</button>
+        <div class="form-group" style="margin-top: 15px;">
+            <input type="text" id="recherche-expert-input" onkeyup="loadExperts()" placeholder="Rechercher un expert par nom...">
+        </div>
+        <div id="resultats-experts" style="margin-top: 10px;">
+            <!-- Liste des experts -->
+        </div>
+      </div>
+
+      <!-- NOUVEAU: MODAL/PANEL pour ajouter/modifier un Expert -->
+      <div id="expert-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+              <h3 id="expert-modal-title">Ajouter un Expert</h3>
+              <input type="hidden" id="expert-id">
+              <div class="form-group"><label for="expert-nom">Nom de l'Expert</label><input type="text" id="expert-nom"></div>
+              <div class="form-group"><label for="expert-contact">Personne Contact</label><input type="text" id="expert-contact"></div>
+              <div class="form-group"><label for="expert-telephone">Téléphone</label><input type="text" id="expert-telephone"></div>
+              <div class="form-group"><label for="expert-email">Email</label><input type="email" id="expert-email"></div>
+              <div class="form-group"><label for="expert-adresse">Adresse</label><input type="text" id="expert-adresse"></div>
+              <div class="form-group"><label for="expert-delai-reponse">Délai moyen de réponse (jours)</label><input type="number" id="expert-delai-reponse" min="0"></div>
+              <button type="button" onclick="saveExpert()">Sauvegarder</button>
+              <button type="button" onclick="closeExpertModal()">Annuler</button>
+          </div>
+      </div>
+
       <div id="accueil-section">
         <h2>Bienvenue dans l'application IA Gestion</h2>
-        <p>Utilisez les onglets pour naviguer entre les différentes sections de gestion.</p>
+        <p id="date-heure-accueil" style="font-size: 1.2em; color: #333;"></p>
       </div>
     </div>
 
-    <div class="sidebar">
-      <button>Retour</button>
-      <button>Notification</button>
-      <button>Paramètre</button>
-      <button>Comptabilité</button>
-    </div>
   </div>
 
   <div class="footer">
@@ -610,11 +707,19 @@
     function hideAllContentPanels() {
         const panelIds = [
             'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces',
-            'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre', 
+            'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre',
             'nouveau-maindoeuvre-form', 'recherche-maindoeuvre-form', 'resultats-recherche-maindoeuvre', 'interface-planning', 'interface-fournisseurs',
-            'recherche-client-form', 'resultatsRecherche', 'interface-pieces', 'interface-options' // AJOUTÉ interface-fournisseurs
+            'recherche-client-form', 'resultatsRecherche', 'interface-pieces', 'interface-options', 'interface-comptabilite' // AJOUTÉ interface-fournisseurs
         ];
         panelIds.forEach(id => {
+            const panel = document.getElementById(id);
+            if (panel) panel.style.display = 'none';
+        });
+        const newPanelIds = [
+            'interface-assureurs',
+            'interface-experts'
+        ];
+        newPanelIds.forEach(id => {
             const panel = document.getElementById(id);
             if (panel) panel.style.display = 'none';
         });
@@ -749,7 +854,19 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(fournisseurData)
         })
-        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    let errorMessage = `Server error (${response.status}): ${text}`;
+                    try {
+                        const errorData = JSON.parse(text);
+                        errorMessage = errorData.message || JSON.stringify(errorData);
+                    } catch (e) { /* Not JSON, use default text */ }
+                    throw new Error(errorMessage);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             alert(data.message);
             closeFournisseurModal();
@@ -764,7 +881,19 @@
     function deleteFournisseur(id) {
         if (!confirm("Confirmer la suppression de ce fournisseur ?")) return;
         fetch(`/api/fournisseurs/${id}`, { method: 'DELETE' })
-            .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        let errorMessage = `Server error (${response.status}): ${text}`;
+                        try {
+                            const errorData = JSON.parse(text);
+                            errorMessage = errorData.message || JSON.stringify(errorData);
+                        } catch (e) { /* Not JSON, use default text */ }
+                        throw new Error(errorMessage);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 alert(data.message);
                 loadFournisseurs();
@@ -844,7 +973,19 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(remiseData)
         })
-        .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message); }))
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    let errorMessage = `Server error (${response.status}): ${text}`;
+                    try {
+                        const errorData = JSON.parse(text);
+                        errorMessage = errorData.message || JSON.stringify(errorData);
+                    } catch (e) { /* Not JSON, use default text */ }
+                    throw new Error(errorMessage);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             alert(data.message);
             closeRemiseModal();
@@ -856,44 +997,322 @@
         });
     }
 
-    // --- Logique du Planning ---
-    let planningEventActuel = { clientId: null };
+    // --- NOUVEAU: Logique des Assureurs ---
 
-    function afficherInterfacePlanning() {
-        showPanel('interface-planning'); // F9 - Planning
-        chargerEvenementsPlanning();
+    function afficherInterfaceAssureurs() {
+        showPanel('interface-assureurs');
+        loadAssureurs();
     }
 
-    function chargerEvenementsPlanning() {
-        const container = document.getElementById('planning-container');
-        container.innerHTML = 'Chargement...';
-        fetch('/api/planning')
+    function loadAssureurs() {
+        const searchTerm = document.getElementById('recherche-assureur-input').value;
+        const container = document.getElementById('resultats-assureurs');
+        container.innerHTML = 'Chargement des assureurs...';
+
+        fetch(`/api/assureurs?q=${encodeURIComponent(searchTerm)}`)
             .then(response => response.json())
-            .then(events => {
+            .then(assureurs => {
                 container.innerHTML = '';
-                if (events.length === 0) {
-                    container.innerHTML = '<p>Aucune intervention planifiée.</p>';
+                if (assureurs.length === 0) {
+                    container.innerHTML = '<p>Aucun assureur trouvé.</p>';
                     return;
                 }
-                events.forEach(event => {
+                assureurs.forEach(assureur => {
                     const bloc = document.createElement('div');
-                    bloc.className = 'client-card'; // On réutilise le style
-                    const startDate = new Date(event.start_datetime);
+                    bloc.className = 'client-card'; // Réutilise le style
                     bloc.innerHTML = `
-                        <h4>${event.work_description}</h4>
-                        <p><strong>Client :</strong> ${event.client.prenom || ''} ${event.client.nom}</p>
-                        <p><strong>Date :</strong> ${startDate.toLocaleDateString('fr-FR')} à ${startDate.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
-                        <p><strong>Technicien :</strong> ${event.technician_name || 'Non assigné'}</p>
-                        <p><strong>Immatriculation :</strong> ${event.car_registration || 'N/A'}</p>
+                        <h4>${assureur.nom}</h4>
+                        <p>Contact: ${assureur.contact_person || 'N/A'}</p>
+                        <p>Téléphone: ${assureur.telephone || 'N/A'}</p>
+                        <p>Délai de paiement moyen: ${assureur.delai_paiement_moyen !== null ? assureur.delai_paiement_moyen + ' jours' : 'N/A'}</p>
+                        <button onclick='openAssureurModal(${JSON.stringify(assureur)})'>Modifier</button>
+                        <button onclick="deleteAssureur(${assureur.id})">Supprimer</button>
                     `;
                     container.appendChild(bloc);
                 });
             })
             .catch(error => {
-                console.error("Erreur lors du chargement du planning:", error);
-                container.innerHTML = '<p>Erreur de chargement du planning.</p>';
+                console.error("Erreur lors du chargement des assureurs:", error);
+                container.innerHTML = '<p>Erreur lors du chargement des assureurs.</p>';
             });
     }
+
+    function openAssureurModal(assureur = null) {
+        document.getElementById('assureur-id').value = assureur ? assureur.id : '';
+        document.getElementById('assureur-nom').value = assureur ? assureur.nom : '';
+        document.getElementById('assureur-contact').value = assureur ? assureur.contact_person : '';
+        document.getElementById('assureur-telephone').value = assureur ? assureur.telephone : '';
+        document.getElementById('assureur-email').value = assureur ? assureur.email : '';
+        document.getElementById('assureur-adresse').value = assureur ? assureur.adresse : '';
+        document.getElementById('assureur-delai-paiement').value = assureur ? assureur.delai_paiement_moyen : '';
+        document.getElementById('assureur-modal-title').innerText = assureur ? "Modifier l'Assureur" : 'Ajouter un Assureur';
+        document.getElementById('assureur-modal').style.display = 'flex';
+    }
+
+    function closeAssureurModal() {
+        document.getElementById('assureur-modal').style.display = 'none';
+    }
+
+    function saveAssureur() {
+        const id = document.getElementById('assureur-id').value;
+        const assureurData = {
+            nom: document.getElementById('assureur-nom').value,
+            contact_person: document.getElementById('assureur-contact').value,
+            telephone: document.getElementById('assureur-telephone').value,
+            email: document.getElementById('assureur-email').value,
+            adresse: document.getElementById('assureur-adresse').value,
+            delai_paiement_moyen: document.getElementById('assureur-delai-paiement').value ? parseInt(document.getElementById('assureur-delai-paiement').value) : null
+        };
+
+        if (!assureurData.nom) { alert("Le nom de l'assureur est obligatoire."); return; }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/assureurs/${id}` : '/api/assureurs';
+
+        fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(assureurData) })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.message || JSON.stringify(errorData));
+                    }).catch(() => response.text().then(text => { throw new Error(`Server error (${response.status}): ${text}`); }));
+                }
+                return response.json();
+            })
+            .then(data => { alert(data.message); closeAssureurModal(); loadAssureurs(); })
+            .catch(error => { console.error("Erreur sauvegarde assureur:", error); alert(`Erreur: ${error.message}`); });
+        }
+
+    function deleteAssureur(id) {
+        if (!confirm("Confirmer la suppression de cet assureur ?")) return;
+        fetch(`/api/assureurs/${id}`, { method: 'DELETE' })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.message || JSON.stringify(errorData));
+                    }).catch(() => response.text().then(text => { throw new Error(`Server error (${response.status}): ${text}`); }));
+                }
+                return response.json();
+            })
+            .then(data => { alert(data.message); loadAssureurs(); })
+            .catch(error => { console.error("Erreur suppression assureur:", error); alert(`Erreur: ${error.message}`); });
+    }
+
+    // --- NOUVEAU: Logique des Experts ---
+
+    function afficherInterfaceExperts() {
+        showPanel('interface-experts');
+        loadExperts();
+    }
+
+    function loadExperts() {
+        const searchTerm = document.getElementById('recherche-expert-input').value;
+        const container = document.getElementById('resultats-experts');
+        container.innerHTML = 'Chargement des experts...';
+
+        fetch(`/api/experts?q=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(experts => {
+                container.innerHTML = '';
+                if (experts.length === 0) {
+                    container.innerHTML = '<p>Aucun expert trouvé.</p>';
+                    return;
+                }
+                experts.forEach(expert => {
+                    const bloc = document.createElement('div');
+                    bloc.className = 'client-card'; // Réutilise le style
+                    bloc.innerHTML = `
+                        <h4>${expert.nom}</h4>
+                        <p>Contact: ${expert.contact_person || 'N/A'}</p>
+                        <p>Téléphone: ${expert.telephone || 'N/A'}</p>
+                        <p>Délai de réponse moyen: ${expert.delai_reponse_moyen !== null ? expert.delai_reponse_moyen + ' jours' : 'N/A'}</p>
+                        <button onclick='openExpertModal(${JSON.stringify(expert)})'>Modifier</button>
+                        <button onclick="deleteExpert(${expert.id})">Supprimer</button>
+                    `;
+                    container.appendChild(bloc);
+                });
+            })
+            .catch(error => {
+                console.error("Erreur lors du chargement des experts:", error);
+                container.innerHTML = '<p>Erreur lors du chargement des experts.</p>';
+            });
+    }
+
+    function openExpertModal(expert = null) {
+        document.getElementById('expert-id').value = expert ? expert.id : '';
+        document.getElementById('expert-nom').value = expert ? expert.nom : '';
+        document.getElementById('expert-contact').value = expert ? expert.contact_person : '';
+        document.getElementById('expert-telephone').value = expert ? expert.telephone : '';
+        document.getElementById('expert-email').value = expert ? expert.email : '';
+        document.getElementById('expert-adresse').value = expert ? expert.adresse : '';
+        document.getElementById('expert-delai-reponse').value = expert ? expert.delai_reponse_moyen : '';
+        document.getElementById('expert-modal-title').innerText = expert ? "Modifier l'Expert" : 'Ajouter un Expert';
+        document.getElementById('expert-modal').style.display = 'flex';
+    }
+
+    function closeExpertModal() {
+        document.getElementById('expert-modal').style.display = 'none';
+    }
+
+    function saveExpert() {
+        const id = document.getElementById('expert-id').value;
+        const expertData = {
+            nom: document.getElementById('expert-nom').value,
+            contact_person: document.getElementById('expert-contact').value,
+            telephone: document.getElementById('expert-telephone').value,
+            email: document.getElementById('expert-email').value,
+            adresse: document.getElementById('expert-adresse').value,
+            delai_reponse_moyen: document.getElementById('expert-delai-reponse').value ? parseInt(document.getElementById('expert-delai-reponse').value) : null
+        };
+
+        if (!expertData.nom) { alert("Le nom de l'expert est obligatoire."); return; }
+
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/experts/${id}` : '/api/experts';
+
+        fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(expertData) })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.message || JSON.stringify(errorData));
+                    }).catch(() => response.text().then(text => { throw new Error(`Server error (${response.status}): ${text}`); }));
+                }
+                return response.json();
+            })
+            .then(data => { alert(data.message); closeExpertModal(); loadExperts(); })
+            .catch(error => { console.error("Erreur sauvegarde expert:", error); alert(`Erreur: ${error.message}`); });
+    }
+
+    function deleteExpert(id) {
+        if (!confirm("Confirmer la suppression de cet expert ?")) return;
+        fetch(`/api/experts/${id}`, { method: 'DELETE' })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.message || JSON.stringify(errorData));
+                    }).catch(() => response.text().then(text => { throw new Error(`Server error (${response.status}): ${text}`); }));
+                }
+                return response.json();
+            })
+            .then(data => { alert(data.message); loadExperts(); })
+            .catch(error => { console.error("Erreur suppression expert:", error); alert(`Erreur: ${error.message}`); });
+    }
+
+       // --- Logique du Planning ---
+    let planningEventActuel = { clientId: null };
+    let dateAffichee = new Date(); // Date actuellement affichée dans le planning
+
+    function afficherInterfacePlanning() {
+        showPanel('interface-planning'); // F9 - Planning
+        setupPlanningCalendar();
+        chargerEvenementsPlanning();
+    }
+
+    function setupPlanningCalendar() {
+        // Clonage pour éviter les écouteurs d'événements multiples
+        const prevButton = document.getElementById('planning-prev-week');
+        const nextButton = document.getElementById('planning-next-week');
+        
+        const newPrevButton = prevButton.cloneNode(true);
+        prevButton.parentNode.replaceChild(newPrevButton, prevButton);
+        
+        const newNextButton = nextButton.cloneNode(true);
+        nextButton.parentNode.replaceChild(newNextButton, nextButton);
+
+        newPrevButton.addEventListener('click', () => {
+            dateAffichee.setDate(dateAffichee.getDate() - 7);
+            chargerEvenementsPlanning();
+        });
+
+        newNextButton.addEventListener('click', () => {
+            dateAffichee.setDate(dateAffichee.getDate() + 7);
+            chargerEvenementsPlanning();
+        });
+    }
+
+    function chargerEvenementsPlanning() {
+        const grid = document.getElementById('planning-calendar-grid');
+        grid.innerHTML = 'Chargement...';
+
+        const debutSemaine = new Date(dateAffichee);
+        debutSemaine.setDate(debutSemaine.getDate() - debutSemaine.getDay() + (debutSemaine.getDay() === 0 ? -6 : 1)); // Lundi
+        debutSemaine.setHours(0, 0, 0, 0);
+
+        const finSemaine = new Date(debutSemaine);
+        finSemaine.setDate(finSemaine.getDate() + 6);
+        finSemaine.setHours(23, 59, 59, 999);
+
+        document.getElementById('planning-current-week').innerText =
+            `Semaine du ${debutSemaine.toLocaleDateString('fr-FR')} au ${finSemaine.toLocaleDateString('fr-FR')}`;
+
+        // L'URL inclut maintenant les dates de début et de fin
+        fetch(`/api/planning?start_date=${debutSemaine.toISOString().split('T')[0]}&end_date=${finSemaine.toISOString().split('T')[0]}`)
+            .then(response => response.json())
+            .then(events => {
+                genererGrilleCalendrier(grid, debutSemaine, events);
+            })
+            .catch(error => {
+                console.error("Erreur lors du chargement du planning:", error);
+                grid.innerHTML = '<p>Erreur de chargement du planning.</p>';
+            });
+    }
+
+    function genererGrilleCalendrier(grid, debutSemaine, events) {
+        grid.innerHTML = ''; // Vider la grille
+
+        // 1. Créer la ligne d'en-tête des jours
+        const headerRow = document.createElement('div');
+        headerRow.style.gridColumn = '1 / -1';
+        headerRow.style.display = 'contents';
+        grid.appendChild(headerRow);
+
+        headerRow.appendChild(document.createElement('div')); // Cellule vide coin supérieur gauche
+
+        const jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+        for (let i = 0; i < 7; i++) {
+            const jourActuel = new Date(debutSemaine);
+            jourActuel.setDate(jourActuel.getDate() + i);
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day-header';
+            dayHeader.innerText = `${jours[i]}\n${jourActuel.toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})}`;
+            headerRow.appendChild(dayHeader);
+        }
+
+        // 2. Créer les lignes pour les heures (de 8h à 19h)
+        for (let heure = 8; heure <= 19; heure++) {
+            const timeLabel = document.createElement('div');
+            timeLabel.className = 'calendar-time-label';
+            timeLabel.innerText = `${heure}:00`;
+            grid.appendChild(timeLabel);
+
+            for (let jour = 0; jour < 7; jour++) {
+                const cell = document.createElement('div');
+                cell.className = 'calendar-grid-cell';
+                const cellDate = new Date(debutSemaine);
+                cellDate.setDate(debutSemaine.getDate() + jour);
+                cell.dataset.date = cellDate.toISOString().split('T')[0];
+                cell.dataset.hour = heure;
+                grid.appendChild(cell);
+            }
+        }
+
+        // 3. Placer les événements dans la grille
+        events.forEach(event => {
+            const eventDate = new Date(event.start_datetime);
+            const eventHour = eventDate.getHours();
+            const eventDateString = eventDate.toISOString().split('T')[0];
+
+            const targetCell = grid.querySelector(`[data-date='${eventDateString}'][data-hour='${eventHour}']`);
+
+            if (targetCell) {
+                const eventSlot = document.createElement('div');
+                eventSlot.className = 'calendar-event-slot';
+                eventSlot.innerText = `${event.client.nom} - ${event.work_description}`;
+                eventSlot.title = `Client: ${event.client.prenom} ${event.client.nom}\nTechnicien: ${event.technician_name}\nDescription: ${event.work_description}`;
+                targetCell.appendChild(eventSlot);
+            }
+        });
+    }
+
 
     function ouvrirModalNouvelEvenement() {
         planningEventActuel = { clientId: null };
@@ -1315,7 +1734,7 @@
     function afficherInterfaceAnalyse() { alert("Section 'Analyse' non implémentée."); }
     function afficherInterfacePhotos() { alert("Section 'Photos' non implémentée."); }
 
-    // --- GESTION DES CLIENTS (ONGLET 2) - VERSION AMÉLIORÉE ---
+    // --- GESTION DES CLIENTS ---
 
     function afficherFormulaireRechercheClient() { // F3 - Client déjà existant
         showPanel('recherche-client-form');
@@ -1451,27 +1870,45 @@
 
     function ajouterPiece() {
       const piece = {
-        designation: document.getElementById('piece-designation').value,
-        ref: document.getElementById('piece-ref').value, // "ref" est un bon nom de clé
-        prix_achat: document.getElementById('piece-prix-achat').value, // J'utilise prix_achat pour être cohérent avec le style Python
-        prix_vente: document.getElementById('piece-prix-vente').value  // Idem pour prix_vente
+        designation: document.getElementById('piece-designation').value.trim(),
+        ref: document.getElementById('piece-ref').value.trim(),
+        prix_achat: document.getElementById('piece-prix-achat').value,
+        prix_vente: document.getElementById('piece-prix-vente').value,
+        fournisseur_id: document.getElementById('piece-fournisseur').value
       };
+
+      // Validation côté client
+      if (!piece.designation) {
+        alert("La désignation est obligatoire.");
+        return;
+      }
+      if (!piece.prix_vente || isNaN(parseFloat(piece.prix_vente)) || parseFloat(piece.prix_vente) <= 0) {
+        alert("Le prix de vente doit être un nombre positif.");
+        return;
+      }
+      if (piece.prix_achat && (isNaN(parseFloat(piece.prix_achat)) || parseFloat(piece.prix_achat) < 0)) {
+        alert("Le prix d'achat doit être un nombre positif ou nul.");
+        return;
+      }
+      if (!piece.fournisseur_id) {
+        alert("Veuillez sélectionner un fournisseur.");
+        return;
+      }
+
+      // Convertir les valeurs numériques
+      piece.prix_achat = piece.prix_achat ? parseFloat(piece.prix_achat) : null;
+      piece.prix_vente = parseFloat(piece.prix_vente);
+      piece.fournisseur_id = parseInt(piece.fournisseur_id);
 
       fetch("/api/pieces", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(piece)
       })
-      .then(response => response.json())
+      .then(response => response.ok ? response.json() : response.json().then(err => { throw new Error(err.message || `Erreur serveur: ${response.status}`); }))
       .then(data => {
         alert(data.message || "Pièce ajoutée avec succès !");
-        // Correction: .reset() ne fonctionne que sur les <form>, on vide les champs manuellement.
-        document.getElementById('piece-designation').value = '';
-        document.getElementById('piece-ref').value = '';
-        document.getElementById('piece-prix-achat').value = '';
-        document.getElementById('piece-prix-vente').value = '';
+        document.getElementById('nouveau-piece-form').querySelectorAll('input, select').forEach(element => element.value = ''); // Vide tous les champs
         afficherInterfacePieces(); // Revenir à l'écran principal des pièces
       })
       .catch(error => console.error("Erreur lors de l'ajout de la pièce:", error));
@@ -1675,6 +2112,10 @@
         });
     }
 
+    // --- NOUVEAU: Fonctions pour les onglets non implémentés ---
+    function afficherInterfaceNotifications() { alert("Section 'Notifications' non implémentée."); }
+    function afficherInterfaceParametre() { alert("Section 'Paramètre' non implémentée."); }
+
     function afficherInterfaceOptions() { showPanel('interface-options'); } // F8 - Options
 
     // --- GESTION DES RACCOURCIS CLAVIER (F1, F2, etc.) ---
@@ -1702,15 +2143,134 @@
                 afficherInterfaceMaindoeuvre();
                 break;
             case 'F6': event.preventDefault(); afficherInterfaceAnalyse(); break;
-            case 'F7': event.preventDefault(); afficherInterfacePhotos(); break;
-            case 'F8': event.preventDefault(); afficherInterfaceOptions(); break;
-            case 'F9': event.preventDefault(); afficherInterfacePlanning(); break;
+            case 'F7': event.preventDefault(); afficherInterfacePhotos(); break; 
+            case 'F8': event.preventDefault(); afficherInterfacePlanning(); break; // Anciennement F9
+            case 'F9': event.preventDefault(); afficherInterfaceNotifications(); break; // NOUVEAU
+            case 'F10': event.preventDefault(); afficherInterfaceParametre(); break; // NOUVEAU
+            case 'F11': event.preventDefault(); afficherInterfaceOptions(); break; // Anciennement F8
+            case 'F12':
+                if (event.shiftKey) { // Détecte Shift + F12
+                    event.preventDefault();
+                    afficherInterfaceComptabilite();
+                }
+                break;
             case 'Escape': goBack(); break; // Utilise 'Escape' pour la touche Échap
         }
     });
 
-  // Afficher l'accueil au chargement de la page
-  window.onload = afficherAccueil;
+    // --- NOUVEAU: Horloge dynamique sur la page d'accueil ---
+    function updateDateTime() {
+        const now = new Date();
+        const targetElement = document.getElementById('date-heure-accueil');
+
+        if (targetElement) {
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+
+            const formattedDate = now.toLocaleDateString('fr-FR', dateOptions);
+            const formattedTime = now.toLocaleTimeString('fr-FR', timeOptions);
+
+            // Met la première lettre du jour en majuscule
+            const finalDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
+
+            targetElement.innerText = `${finalDate} - ${formattedTime}`;
+        }
+    }
+
+  // Afficher l'accueil et démarrer l'horloge au chargement de la page
+  window.onload = function() {
+      afficherAccueil();
+      updateDateTime(); // Affiche l'heure immédiatement
+      setInterval(updateDateTime, 1000); // Met à jour l'heure chaque seconde
+  };
+
+  // --- NOUVEAU: Fonction pour populer le menu déroulant des fournisseurs dans le formulaire de pièce ---
+  function populateFournisseursDropdown() {
+      const selectElement = document.getElementById('piece-fournisseur');
+      selectElement.innerHTML = '<option value="">Chargement...</option>'; // État initial de chargement
+
+      fetch(`/api/fournisseurs`)
+          .then(response => {
+              if (!response.ok) {
+                  throw new Error(`Erreur réseau lors du chargement des fournisseurs: ${response.statusText}`);
+              }
+              return response.json();
+          })
+          .then(fournisseurs => {
+              selectElement.innerHTML = '<option value="">-- Sélectionner un fournisseur --</option>'; // Option par défaut
+              fournisseurs.forEach(fournisseur => {
+                  const option = document.createElement('option');
+                  option.value = fournisseur.id;
+                  option.innerText = fournisseur.nom;
+                  selectElement.appendChild(option);
+              });
+          })
+          .catch(error => {
+              console.error("Erreur lors du chargement des fournisseurs pour le formulaire de pièce:", error);
+              selectElement.innerHTML = '<option value="">Erreur de chargement</option>';
+          });
+  }
+
+  // --- NOUVEAU: Fonctions pour l'interface de comptabilité ---
+
+  function afficherInterfaceComptabilite() {
+      showPanel('interface-comptabilite');
+      chargerDonneesComptabilite();
+  }
+
+  function chargerDonneesComptabilite() {
+      // Réinitialise l'affichage
+      document.getElementById('ca-mois-total').innerText = 'Chargement...';
+      document.getElementById('depenses-fournisseur-container').innerHTML = 'Chargement...';
+      document.getElementById('ca-famille-piece-container').innerHTML = 'Chargement...';
+
+      // Récupère le CA du mois en cours
+      fetch('/api/comptabilite/ca-mensuel')
+          .then(response => response.json())
+          .then(data => {
+              const total = data.total_ca_mensuel || 0;
+              document.getElementById('ca-mois-total').innerText = `${total.toFixed(2)} €`;
+          })
+          .catch(error => {
+              console.error("Erreur chargement CA mensuel:", error);
+              document.getElementById('ca-mois-total').innerText = 'Erreur';
+          });
+
+      // Récupère les dépenses par fournisseur
+      fetch('/api/comptabilite/depenses-par-fournisseur')
+          .then(response => response.json())
+          .then(data => renderTable('depenses-fournisseur-container', ['Fournisseur', 'Montant Dépensé HT'], data, item => [item.nom_fournisseur, `${item.total_depense.toFixed(2)} €`]))
+          .catch(error => {
+              console.error("Erreur chargement dépenses fournisseur:", error);
+              document.getElementById('depenses-fournisseur-container').innerHTML = '<p>Erreur de chargement. <strong>Note:</strong> Cette fonctionnalité nécessite que les pièces soient liées à un fournisseur.</p>';
+          });
+
+      // Récupère le CA par famille de pièces
+      fetch('/api/comptabilite/ca-par-categorie')
+          .then(response => response.json())
+          .then(data => renderTable('ca-famille-piece-container', ['Famille de Pièce', 'Chiffre d\'Affaires HT'], data, item => [item.categorie, `${item.total_ca.toFixed(2)} €`]))
+          .catch(error => {
+              console.error("Erreur chargement CA par catégorie:", error);
+              document.getElementById('ca-famille-piece-container').innerHTML = '<p>Erreur de chargement. <strong>Note:</strong> Cette fonctionnalité nécessite que les pièces aient une catégorie.</p>';
+          });
+  }
+
+  function renderTable(containerId, headers, data, rowMapper) {
+      const container = document.getElementById(containerId);
+      if (!data || data.length === 0) {
+          container.innerHTML = '<p>Aucune donnée disponible.</p>';
+          return;
+      }
+      const table = document.createElement('table');
+      table.className = 'compta-table';
+      const thead = table.createTHead();
+      const headerRow = thead.insertRow();
+      headers.forEach(headerText => { const th = document.createElement('th'); th.innerText = headerText; headerRow.appendChild(th); });
+      const tbody = table.createTBody();
+      data.forEach(item => { const row = tbody.insertRow(); const rowData = rowMapper(item); rowData.forEach(cellData => { const cell = row.insertCell(); cell.innerText = cellData; }); });
+      container.innerHTML = '';
+      container.appendChild(table);
+  }
 </script>
 
 </body>
