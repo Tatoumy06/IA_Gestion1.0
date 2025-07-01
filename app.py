@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_
+from sqlalchemy import or_, cast, String
 from flask_cors import CORS
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 from fpdf import FPDF
+from sqlalchemy import func, extract # Ajout des imports nécessaires pour les fonctions d'agrégation et d'extraction de date
 
 # --- Configuration ---
 app = Flask(__name__)
@@ -26,7 +27,7 @@ db = SQLAlchemy(app)
 
 # --- Modèles de base de données (Database Models) ---
 
-# Modèle Clie nt (probablement déjà existant)
+# Modèle Client (probablement déjà existant)
 class Client(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(80), nullable=False)
@@ -48,9 +49,18 @@ class Piece(db.Model):
     ref = db.Column(db.String(50), nullable=True, unique=True)
     prix_achat = db.Column(db.Float, nullable=True)
     prix_vente = db.Column(db.Float, nullable=False)
+    # NOUVEAU: Ajout de la catégorie pour les pièces (pour le CA par famille)
+    category = db.Column(db.String(100), nullable=True) # Ex: "Moteur", "Carrosserie"
+    # NOUVEAU: Ajout de la relation avec le fournisseur (pour les dépenses par fournisseur)
+    fournisseur_id = db.Column(db.Integer, db.ForeignKey('fournisseur.id'), nullable=True)
+    fournisseur = db.relationship('Fournisseur', backref=db.backref('pieces', lazy=True))
 
     def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        # Inclure le nom du fournisseur si disponible
+        if self.fournisseur:
+            data['fournisseur_nom'] = self.fournisseur.nom
+        return data
 
 # NOUVEAU: Modèle pour la Main d'oeuvre
 class MainDoeuvre(db.Model):
@@ -179,6 +189,20 @@ class Expert(db.Model):
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
+# NOUVEAU: Modèle pour les Techniciens
+class Technicien(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(80), nullable=False)
+    prenom = db.Column(db.String(80))
+    adresse = db.Column(db.String(200))
+    telephone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    id_technicien = db.Column(db.String(50), unique=True, nullable=False) # ID interne du technicien
+    type_poste = db.Column(db.String(50)) # Tôlier / Peintre / Mécanicien / Préparateur
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
 # --- Routes API ---
 
 # Routes pour les clients (probablement déjà existantes)
@@ -193,11 +217,18 @@ def add_client():
 @app.route('/api/clients/search', methods=['GET', 'POST'])
 def search_clients_unified():
     if request.method == 'GET':
-        # Recherche rapide pour le formulaire de facture
         search_term = request.args.get('q', '')
-        if not search_term or len(search_term) < 2:
-            return jsonify([])
-        clients = Client.query.filter(Client.nom.ilike(f'%{search_term}%')).limit(10).all()
+        query = Client.query
+        if search_term:
+            # Recherche améliorée par nom, prénom, email ou ville
+            search_pattern = f'%{search_term}%'
+            query = query.filter(or_(
+                Client.nom.ilike(search_pattern),
+                Client.prenom.ilike(search_pattern),
+                Client.email.ilike(search_pattern),
+                Client.ville.ilike(search_pattern)
+            ))
+        clients = query.order_by(Client.nom.asc()).all()
         return jsonify([client.to_dict() for client in clients])
     
     if request.method == 'POST':
@@ -231,50 +262,27 @@ def delete_client(client_id):
     db.session.commit()
     return jsonify({'message': 'Client supprimé avec succès!'})
 
-# NOUVEAU: Route pour ajouter une pièce
-@app.route('/api/pieces', methods=['POST'])
-def add_piece():
-    data = request.get_json()
-
-    # Validation simple
-    if not data or not 'designation' in data or not 'prix_vente' in data:
-        return jsonify({'message': 'Les champs désignation et prix de vente sont requis'}), 400
-
-    # Conversion des prix en nombres, avec gestion des erreurs
-    try:
-        # Utilise .get() pour éviter une erreur si la clé n'existe pas
-        prix_achat = float(data.get('prix_achat')) if data.get('prix_achat') else None
-        prix_vente = float(data['prix_vente'])
-    except (ValueError, TypeError):
-        return jsonify({'message': 'Les prix doivent être des nombres valides'}), 400
-
-    new_piece = Piece(
-        designation=data['designation'],
-        ref=data.get('ref'),
-        prix_achat=prix_achat,
-        prix_vente=prix_vente
-    )
-    db.session.add(new_piece)
-    db.session.commit()
-    
-    return jsonify({'message': 'Pièce ajoutée avec succès!', 'piece': new_piece.to_dict()}), 201
-
 # Route unifiée pour la recherche de pièces
 @app.route('/api/pieces/search', methods=['GET', 'POST'])
 def search_pieces_unified():
     if request.method == 'GET':
         # Recherche rapide pour le formulaire de facture
         search_term = request.args.get('q', '')
+        
+        # On ne lance la recherche que si le terme est assez long, comme sur le frontend
         if not search_term or len(search_term) < 2:
             return jsonify([])
-        
-        # Recherche dans la désignation ou la référence
-        pieces = Piece.query.filter(
+
+        # Construction de la requête de manière progressive, plus robuste et lisible.
+        query = Piece.query
+        search_pattern = f'%{search_term}%'
+        query = query.filter(
             or_(
-                Piece.designation.ilike(f'%{search_term}%'),
-                Piece.ref.ilike(f'%{search_term}%')
+                Piece.designation.ilike(search_pattern),
+                cast(Piece.ref, String).ilike(search_pattern)
             )
-        ).limit(10).all()
+        )
+        pieces = query.limit(10).all()
         return jsonify([piece.to_dict() for piece in pieces])
 
     if request.method == 'POST':
@@ -286,10 +294,44 @@ def search_pieces_unified():
         if designation:
             query = query.filter(Piece.designation.ilike(f'%{designation}%'))
         if ref:
-            query = query.filter(Piece.ref.ilike(f'%{ref}%'))
+            # CORRECTION: On applique le même "cast" que pour la recherche GET pour rendre la recherche robuste
+            query = query.filter(cast(Piece.ref, String).ilike(f'%{ref}%'))
         pieces = query.all()
         return jsonify({'pieces': [piece.to_dict() for piece in pieces]})
 
+# Route pour ajouter une pièce
+@app.route('/api/pieces', methods=['POST'])
+def add_piece():
+    data = request.get_json()
+
+    if not data or not 'designation' in data or not 'prix_vente' in data:
+        return jsonify({'message': 'Les champs désignation et prix de vente sont requis'}), 400
+
+    try:
+        prix_achat = float(data.get('prix_achat')) if data.get('prix_achat') else None
+        prix_vente = float(data['prix_vente'])
+        fournisseur_id = int(data['fournisseur_id']) if data.get('fournisseur_id') else None
+    except (ValueError, TypeError):
+        return jsonify({'message': 'Les prix et l\'ID fournisseur doivent être des nombres valides'}), 400
+
+    # Vérifier si le fournisseur existe
+    if fournisseur_id:
+        fournisseur = Fournisseur.query.get(fournisseur_id)
+        if not fournisseur:
+            return jsonify({'message': 'Fournisseur non trouvé'}), 404
+
+    new_piece = Piece(
+        designation=data['designation'],
+        ref=data.get('ref'),
+        prix_achat=prix_achat,
+        prix_vente=prix_vente,
+        category=data.get('category'), # NOUVEAU: Ajout de la catégorie
+        fournisseur_id=fournisseur_id # NOUVEAU: Ajout de l'ID fournisseur
+    )
+    db.session.add(new_piece)
+    db.session.commit()
+
+    return jsonify({'message': 'Pièce ajoutée avec succès!', 'piece': new_piece.to_dict()}), 201
 # --- NOUVEAU: Routes pour la Main d'oeuvre ---
 
 @app.route('/api/maindoeuvre', methods=['POST'])
@@ -432,6 +474,7 @@ def generate_facture_pdf(facture_id):
     # FONCTION CRUCIALE: Nettoie le texte pour fpdf2 en forçant l'encodage latin-1
     # et en remplaçant les caractères non supportés pour éviter les crashs.
     def sanitize_text(text):
+        # Utiliser `str(text)` pour s'assurer que l'entrée est une chaîne, même si c'est un nombre ou autre type.
         return str(text).encode('latin-1', 'replace').decode('latin-1')
 
     class PDF(FPDF):
@@ -764,6 +807,159 @@ def delete_expert(expert_id):
     db.session.commit()
     return jsonify({'message': 'Expert supprimé avec succès!'})
 
+# --- NOUVEAU: Routes pour les Techniciens ---
+@app.route('/api/techniciens', methods=['POST'])
+def add_technicien():
+    data = request.get_json()
+    required_fields = ['nom', 'id_technicien', 'type_poste']
+    if not all(field in data for field in required_fields):
+        return jsonify({'message': 'Nom, ID Technicien et Type de Poste sont requis.'}), 400
+
+    if Technicien.query.filter_by(id_technicien=data['id_technicien']).first():
+        return jsonify({'message': 'Un technicien avec cet ID existe déjà.'}), 409
+
+    new_technicien = Technicien(
+        nom=data['nom'],
+        prenom=data.get('prenom'),
+        adresse=data.get('adresse'),
+        telephone=data.get('telephone'),
+        email=data.get('email'),
+        id_technicien=data['id_technicien'],
+        type_poste=data['type_poste']
+    )
+    db.session.add(new_technicien)
+    db.session.commit()
+    return jsonify({'message': 'Technicien ajouté avec succès!', 'technicien': new_technicien.to_dict()}), 201
+
+@app.route('/api/techniciens/search', methods=['GET'])
+def search_techniciens():
+    search_term = request.args.get('q', '')
+    query = Technicien.query
+    if search_term:
+        search_pattern = f'%{search_term}%'
+        query = query.filter(or_(
+            Technicien.nom.ilike(search_pattern),
+            Technicien.prenom.ilike(search_pattern),
+            Technicien.id_technicien.ilike(search_pattern),
+            Technicien.type_poste.ilike(search_pattern)
+        ))
+    techniciens = query.order_by(Technicien.nom.asc()).all()
+    return jsonify([t.to_dict() for t in techniciens])
+
+@app.route('/api/techniciens/<int:technicien_id>', methods=['PUT'])
+def update_technicien(technicien_id):
+    technicien = Technicien.query.get_or_404(technicien_id)
+    data = request.get_json()
+    required_fields = ['nom', 'id_technicien', 'type_poste']
+    if not all(field in data for field in required_fields):
+        return jsonify({'message': 'Nom, ID Technicien et Type de Poste sont requis.'}), 400
+
+    # Vérifier l'unicité de l'ID technicien si modifié
+    if technicien.id_technicien != data['id_technicien']:
+        if Technicien.query.filter_by(id_technicien=data['id_technicien']).first():
+            return jsonify({'message': 'Un autre technicien avec cet ID existe déjà.'}), 409
+
+    technicien.nom = data['nom']
+    technicien.prenom = data.get('prenom', technicien.prenom)
+    technicien.adresse = data.get('adresse', technicien.adresse)
+    technicien.telephone = data.get('telephone', technicien.telephone)
+    technicien.email = data.get('email', technicien.email)
+    technicien.id_technicien = data['id_technicien']
+    technicien.type_poste = data['type_poste']
+    db.session.commit()
+    return jsonify({'message': 'Technicien mis à jour avec succès!', 'technicien': technicien.to_dict()})
+
+@app.route('/api/techniciens/<int:technicien_id>', methods=['DELETE'])
+def delete_technicien(technicien_id):
+    technicien = Technicien.query.get_or_404(technicien_id)
+    # Vérifier si le technicien est lié à des événements de planning avant suppression (optionnel)
+    if Planning.query.filter_by(technician_name=f"{technicien.nom} {technicien.prenom or ''}".strip()).first():
+         return jsonify({'message': 'Impossible de supprimer ce technicien car il est associé à des événements de planning.'}), 400
+
+    db.session.delete(technicien)
+    db.session.commit()
+    return jsonify({'message': 'Technicien supprimé avec succès!'})
+
+# --- NOUVEAU: Routes pour la Comptabilité ---
+
+@app.route('/api/comptabilite/ca-mensuel', methods=['GET'])
+def get_ca_mensuel():
+    """Calcule le chiffre d'affaires total (TTC) pour le mois en cours."""
+    now = datetime.utcnow()
+    start_of_month = datetime(now.year, now.month, 1)
+    
+    # Calcul du total_ttc pour toutes les factures du mois en cours
+    total_ca_mensuel = db.session.query(func.sum(Facture.total_ttc)).filter(
+        Facture.date_creation >= start_of_month
+    ).scalar() or 0.0 # scalar() retourne None si pas de résultats, donc on met 0.0
+
+    return jsonify({'total_ca_mensuel': total_ca_mensuel})
+
+@app.route('/api/comptabilite/depenses-par-fournisseur', methods=['GET'])
+def get_depenses_par_fournisseur():
+    """Calcule les dépenses (prix d'achat des pièces facturées) par fournisseur."""
+    # Joindre FactureLigne avec Piece et Fournisseur
+    # Filtrer les lignes qui sont des pièces (piece_id non nul)
+    # Grouper par fournisseur et sommer les prix d'achat * quantité
+    
+    depenses = db.session.query(
+        Fournisseur.nom.label('nom_fournisseur'),
+        func.sum(FactureLigne.quantite * Piece.prix_achat).label('total_depense')
+    ).join(Piece, FactureLigne.piece_id == Piece.id)\
+     .join(Fournisseur, Piece.fournisseur_id == Fournisseur.id)\
+     .filter(FactureLigne.piece_id.isnot(None))\
+     .group_by(Fournisseur.nom)\
+     .order_by(Fournisseur.nom)\
+     .all()
+
+    # Convertir les résultats en une liste de dictionnaires
+    result = [{'nom_fournisseur': d.nom_fournisseur, 'total_depense': d.total_depense or 0.0} for d in depenses]
+    return jsonify(result)
+
+@app.route('/api/comptabilite/ca-par-categorie', methods=['GET'])
+def get_ca_par_categorie():
+    """Calcule le chiffre d'affaires (HT) par catégorie de pièce."""
+    # Joindre FactureLigne avec Piece
+    # Filtrer les lignes qui sont des pièces (piece_id non nul)
+    # Grouper par Piece.category et sommer les prix de vente * quantité
+    
+    ca_par_categorie = db.session.query(
+        Piece.category.label('categorie'),
+        func.sum(FactureLignes.quantite * FactureLigne.prix_unitaire_ht).label('total_ca')
+    ).join(Piece, FactureLigne.piece_id == Piece.id)\
+     .filter(FactureLigne.piece_id.isnot(None), Piece.category.isnot(None))\
+     .group_by(Piece.category)\
+     .order_by(Piece.category)\
+     .all()
+
+    # Convertir les résultats en une liste de dictionnaires
+    result = [{'categorie': c.categorie, 'total_ca': c.total_ca or 0.0} for c in ca_par_categorie]
+    return jsonify(result)
+
+@app.route('/api/comptabilite/heures-facturees-technicien', methods=['GET'])
+def get_heures_facturees_technicien():
+    """
+    Calcule le nombre d'heures "facturées" par technicien pour le mois en cours,
+    basé sur les événements du planning.
+    """
+    now = datetime.utcnow()
+    start_of_month = datetime(now.year, now.month, 1)
+    
+    # On compte le nombre d'événements de planning pour chaque technicien ce mois-ci.
+    # Chaque événement est considéré comme une unité (par exemple, 1 heure) pour ce calcul.
+    heures_par_technicien = db.session.query(
+        Planning.technician_name.label('technician_name'),
+        func.count(Planning.id).label('total_events')
+    ).filter(
+        Planning.start_datetime >= start_of_month,
+        Planning.technician_name.isnot(None)
+    ).group_by(Planning.technician_name)\
+     .order_by(Planning.technician_name.asc())\
+     .all()
+
+    result = [{'technician_name': h.technician_name, 'total_hours': float(h.total_events)} for h in heures_par_technicien]
+    return jsonify(result)
+
 # --- Initialisation ---
 if __name__ == '__main__':
     # Crée les tables dans la base de données si elles n'existent pas
@@ -771,4 +967,4 @@ if __name__ == '__main__':
         db.create_all()
     
     # Lance le serveur de développement
-    app.run(debug=False, host='127.0.0.1', port=8000) # debug=False pour un fonctionnement stable en arriere-plan
+    app.run(debug=True, host='127.0.0.1', port=8000) # ATTENTION: debug=True pour voir les erreurs détaillées dans le navigateur

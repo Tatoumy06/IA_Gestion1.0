@@ -8,7 +8,6 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background: #f2f2f2;
     }
     .tabs {
       background: #d6d6d6;
@@ -161,6 +160,42 @@
         flex-grow: 1;
     }
     #facture-infos-complementaires { width: 100%; padding: 6px; border: 1px solid #999; }
+  </style>
+  <!-- NOUVEAU: Styles pour la recherche de pièces en direct dans la facture -->
+  <style>
+    .search-container-cell {
+        position: relative; /* Essentiel pour positionner les résultats */
+    }
+    .search-results {
+        display: none; /* Caché par défaut */
+        position: absolute;
+        top: 100%; /* S'affiche juste en dessous du champ de recherche */
+        left: 0;
+        right: 0;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        z-index: 1000; /* S'assure que la liste est au-dessus des autres éléments */
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        text-align: left; /* Aligner le texte à gauche dans les résultats */
+    }
+    .result-item {
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+    .result-item:hover {
+        background-color: #f0f0f0;
+    }
+    .result-item-error {
+        padding: 8px 12px;
+        color: #dc3545;
+    }
+    .description-search-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
   </style>
   <style>
     /* Styles généraux pour les formulaires et les groupes */
@@ -535,6 +570,7 @@
         <div class="form-group"><label for="piece-ref">Réf.</label><input type="text" id="piece-ref"></div>
         <div class="form-group"><label for="piece-prix-achat">Prix d'achat unitaire HT</label><input type="number" id="piece-prix-achat" step="0.01" placeholder="0.00"></div>
         <div class="form-group"><label for="piece-prix-vente">Prix de vente HT</label><input type="number" id="piece-prix-vente" step="0.01" placeholder="0.00" required></div>
+        <div class="form-group"><label for="piece-category">Catégorie</label><input type="text" id="piece-category" placeholder="Ex: Moteur, Carrosserie"></div>
         <div class="form-group"><label for="piece-fournisseur">Fournisseur</label><select id="piece-fournisseur" required><option value="">-- Sélectionner un fournisseur --</option></select></div>
         <button onclick="ajouterPiece()">Sauvegarder</button>
       </div>
@@ -1476,14 +1512,23 @@
         tbody.innerHTML = '';
         factureActuelle.lignes.forEach(ligne => {
             const tr = document.createElement('tr');
+            // NOUVEAU: Les champs sont maintenant des inputs pour être éditables
             tr.innerHTML = `
-                <td>${ligne.description}</td><td>${ligne.quantite}</td>
-                <td>${ligne.prix_unitaire_ht.toFixed(2)}</td><td>${(ligne.quantite * ligne.prix_unitaire_ht).toFixed(2)}</td>
+                <td>${ligne.description}</td>
+                <td><input type="number" class="quantity" value="${ligne.quantite}" onchange="updateLigneValue(${ligne.id}, 'quantite', this.value)" style="width: 60px;"></td>
+                <td><input type="number" class="price" value="${ligne.prix_unitaire_ht.toFixed(2)}" onchange="updateLigneValue(${ligne.id}, 'prix_unitaire_ht', this.value)" step="0.01" style="width: 80px;"></td>
+                <td>${(ligne.quantite * ligne.prix_unitaire_ht).toFixed(2)}</td>
                 <td><button onclick="supprimerLigneFacture(${ligne.id})">X</button></td>
             `;
             tbody.appendChild(tr);
         });
         calculerTotaux();
+    }
+    // NOUVEAU: Fonction pour mettre à jour une valeur dans une ligne de facture
+    function updateLigneValue(ligneId, field, newValue) {
+        const ligne = factureActuelle.lignes.find(l => l.id === ligneId);
+        if (ligne) { ligne[field] = parseFloat(newValue) || 0; }
+        redessinerLignesFacture(); // Redessine tout pour recalculer les totaux
     }
 
     function supprimerLigneFacture(ligneId) {
@@ -1500,12 +1545,59 @@
         document.getElementById('facture-total-ttc').innerText = totalTTC.toFixed(2);
     }
 
+    // MODIFIÉ: La fonction n'ouvre plus de modale mais ajoute une ligne de recherche
     function ajouterLignePiece() {
-        // Ouvre le panneau de recherche de pièce
-        document.getElementById('recherche-piece-facture-panel').style.display = 'flex';
-        document.getElementById('recherche-piece-facture-input').focus();
+        // Empêche d'ajouter une nouvelle ligne de recherche si une est déjà en cours d'édition
+        if (document.querySelector('.editing-row')) {
+            alert("Veuillez d'abord terminer la saisie de la ligne actuelle.");
+            return;
+        }
+
+        const tbody = document.getElementById('facture-lignes-table').getElementsByTagName('tbody')[0];
+        const tempRow = tbody.insertRow();
+        tempRow.className = 'editing-row'; // Marqueur pour la ligne temporaire
+
+        tempRow.innerHTML = `
+            <td class="search-container-cell">
+                <input type="text" class="description-search-input" placeholder="Chercher pièce par réf. ou nom..." oninput="liveSearchPieces(this)" autocomplete="off">
+                <div class="search-results"></div>
+            </td>
+            <td><input type="number" class="quantity-input" value="1" min="0.1" step="0.1" style="width: 60px;"></td>
+            <td><input type="number" class="price-input" placeholder="Prix" disabled style="width: 80px;"></td>
+            <td>-</td>
+            <td><button type="button" onclick="this.closest('tr').remove()">Annuler</button></td>
+        `;
+        tempRow.querySelector('.description-search-input').focus();
     }
 
+    // NOUVEAU: Logique de recherche en direct
+    async function liveSearchPieces(inputElement) {
+        const searchTerm = inputElement.value;
+        const resultsContainer = inputElement.nextElementSibling;
+        resultsContainer.innerHTML = '';
+
+        if (searchTerm.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        const response = await fetch(`/api/pieces/search?q=${encodeURIComponent(searchTerm)}`);
+        const pieces = await response.json();
+
+        resultsContainer.style.display = 'block';
+        if (pieces.length > 0) {
+            pieces.forEach(piece => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.textContent = `${piece.designation} (Réf: ${piece.ref || 'N/A'}) - ${piece.prix_vente.toFixed(2)}€`;
+                item.onclick = () => selectPieceAndConfirmLine(piece, inputElement);
+                resultsContainer.appendChild(item);
+            });
+        } else {
+            resultsContainer.innerHTML = '<div class="result-item-error">Aucune pièce trouvée.</div>';
+        }
+    }
+    
     function fermerRecherchePieceFacture() {
         document.getElementById('recherche-piece-facture-panel').style.display = 'none';
         document.getElementById('recherche-piece-facture-input').value = '';
@@ -1537,12 +1629,15 @@
             }).catch(error => console.error("Erreur de recherche de pièce:", error));
     }
 
-    function selectionnerPiecePourFacture(piece) {
-        const quantite = parseFloat(prompt(`Quantité pour "${piece.designation}" ?`, "1"));
+    // MODIFIÉ: La sélection se fait depuis la nouvelle ligne de recherche
+    function selectPieceAndConfirmLine(piece, inputElement) {
+        const tempRow = inputElement.closest('.editing-row');
+        const quantite = parseFloat(tempRow.querySelector('.quantity-input').value);
+
         if (quantite && !isNaN(quantite) && quantite > 0) {
             ajouterLigne(`${piece.designation} (Réf: ${piece.ref || 'N/A'})`, quantite, piece.prix_vente, piece.id);
-            fermerRecherchePieceFacture();
         }
+        tempRow.remove(); // Supprime la ligne de recherche temporaire
     }
 
     function ajouterLigneMainDoeuvre() {
@@ -1713,7 +1808,11 @@
       // Vider le formulaire à chaque affichage pour une nouvelle saisie
       document.getElementById('nouveau-client-form').querySelectorAll('input').forEach(input => input.value = '');
     }
-    function afficherFormulaireNouvellePiece() { showPanel('nouveau-piece-form');  } // F4 - Nouvelle référence
+    function afficherFormulaireNouvellePiece() { // F4 - Nouvelle référence
+      showPanel('nouveau-piece-form');
+      // On charge les fournisseurs dans le menu déroulant à chaque fois qu'on ouvre le formulaire
+      populateFournisseursDropdown();
+    }
     function afficherFormulaireRecherchePiece() { showPanel('recherche-piece-form'); document.getElementById('resultats-recherche-pieces').innerHTML = ''; } // F4 - Référence connue
 
     // --- Fonctions de navigation entre les onglets ---
@@ -1873,7 +1972,8 @@
         designation: document.getElementById('piece-designation').value.trim(),
         ref: document.getElementById('piece-ref').value.trim(),
         prix_achat: document.getElementById('piece-prix-achat').value,
-        prix_vente: document.getElementById('piece-prix-vente').value,
+        prix_vente: document.getElementById('piece-prix-vente').value, 
+        category: document.getElementById('piece-category').value.trim(), // NOUVEAU
         fournisseur_id: document.getElementById('piece-fournisseur').value
       };
 
@@ -2247,8 +2347,25 @@
 
       // Récupère le CA par famille de pièces
       fetch('/api/comptabilite/ca-par-categorie')
-          .then(response => response.json())
-          .then(data => renderTable('ca-famille-piece-container', ['Famille de Pièce', 'Chiffre d\'Affaires HT'], data, item => [item.categorie, `${item.total_ca.toFixed(2)} €`]))
+          .then(response => {
+              if (!response.ok) {
+                  // If response is not OK (e.g., 404, 500), try to read it as text
+                  // to get more details about the server's error.
+                  return response.text().then(text => {
+                      throw new Error(`Server responded with status ${response.status}: ${text.substring(0, 200)}...`); // Limit text length for display
+                  });
+              }
+              return response.json();
+          })
+          .then(data => {
+              // On vérifie si les données sont directement un tableau ou contenues dans une propriété (ex: "data", "results", "categories")
+              const dataArray = Array.isArray(data) ? data : data.data || data.results || data.categories || [];
+              if (!Array.isArray(data) && dataArray.length === 0) {
+                  // Cette ligne est utile pour le débogage dans la console du navigateur
+                  console.warn("La réponse de l'API pour 'ca-par-categorie' n'est pas un tableau et ne contient pas de clé de données connue. Réponse reçue:", data);
+              }
+              renderTable('ca-famille-piece-container', ['Famille de Pièce', 'Chiffre d\'Affaires HT'], dataArray, item => [item.categorie, `${item.total_ca.toFixed(2)} €`]);
+          })
           .catch(error => {
               console.error("Erreur chargement CA par catégorie:", error);
               document.getElementById('ca-famille-piece-container').innerHTML = '<p>Erreur de chargement. <strong>Note:</strong> Cette fonctionnalité nécessite que les pièces aient une catégorie.</p>';
