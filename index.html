@@ -67,8 +67,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background-image: url('drawable/logo.png'); /* Chemin relatif correct vers votre logo */
-      background-size: contain; /* Affiche l'image entièrement, sans la couper */
+      
       background-repeat: no-repeat; /* Empêche l'image de se répéter */
       background-position: center; /* L'image est centrée */
       text-align: center;
@@ -350,7 +349,7 @@
     <div onclick="afficherInterfacePhotos()">F7 - Photos</div> 
     <div onclick="afficherInterfacePlanning()">F8 - Planning</div> 
     <div onclick="afficherInterfaceNotifications()">F9 - Notifications</div> 
-    <div onclick="afficherInterfaceParametre()">F10 - Paramètre</div> 
+    <div onclick="afficherInterfaceParametre()">F10 - Technicien</div> 
     <div onclick="afficherInterfaceOptions()">F11 - Option</div> 
     <div onclick="afficherInterfaceComptabilite()">Comptabilité</div> 
 
@@ -380,7 +379,123 @@
         <h2>Facture</h2>
         <button onclick="afficherFormulaireNouvelleFacture()">Nouvelle facture</button>
         <button onclick="afficherFormulaireRechercheFacture()">Recherche de facture</button>
+        <button id="btn-create-or" class="btn btn-primary" type="button">Création OR</button>
+        <button id="btn-search-or" class="btn btn-secondary" type="button">Recherche d'OR</button>
       </div>
+      
+<!-- Modal de création d'Ordre de Réparation (OR) -->
+    <div id="modal-create-or" class="modal-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div class="modal-content" style="background:#fff; border-radius:8px; width:90%; max-width:800px; max-height:90vh; overflow-y:auto; padding:1.5rem; position:relative;">
+        <button id="modal-close-create-or" style="position:absolute; top:1rem; right:1rem; font-size:1.5rem; background:none; border:none; cursor:pointer;">&times;</button>
+    <h3>Ordre de Réparation - Carrosserie</h3>
+        <form id="form-create-or">
+      <!-- Informations client -->
+        <fieldset style="margin-bottom:1rem;">
+            <legend>Informations client</legend>
+            <label>Nom complet:<br><input type="text" name="clientName" required style="width:100%;" /></label><br>
+            <label>Adresse:<br><input type="text" name="clientAddress" style="width:100%;" /></label><br>
+            <label>Téléphone:<br><input type="tel" name="clientPhone" style="width:100%;" /></label><br>
+            <label>Email:<br><input type="email" name="clientEmail" style="width:100%;" /></label>
+        </fieldset>
+      <!-- Informations véhicule -->
+      <fieldset style="margin-bottom:1rem;">
+        <legend>Informations véhicule</legend>
+        <label>Marque:<br><input type="text" name="vehicleMake" required style="width:100%;" /></label><br>
+        <label>Modèle:<br><input type="text" name="vehicleModel" required style="width:100%;" /></label><br>
+        <label>Année:<br><input type="number" name="vehicleYear" min="1900" max="2100" style="width:100px;" /></label><br>
+        <label>Immatriculation:<br><input type="text" name="licensePlate" style="width:100%;" /></label><br>
+        <label>VIN:<br><input type="text" name="vin" style="width:100%;" /></label>
+      </fieldset>
+      <!-- Détails de dommages -->
+      <fieldset style="margin-bottom:1rem;">
+        <legend>Détails des dommages</legend>
+        <label>Description des dommages:<br><textarea name="damageDescription" rows="3" style="width:100%;"></textarea></label><br>
+        <label>Photos (URLs ou upload):<br><input type="text" name="damagePhotos" placeholder="Séparer par des virgules" style="width:100%;" /></label>
+      </fieldset>
+      <!-- Liste des pièces -->
+      <fieldset style="margin-bottom:1rem;">
+        <legend>Pièces et fournitures</legend>
+        <div id="parts-list">
+          <div class="part-item" style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+            <input type="text" name="partName[]" placeholder="Nom pièce" style="flex:2;" />
+            <input type="number" name="partQty[]" placeholder="Qté" style="flex:1;" />
+            <input type="number" step="0.01" name="partCost[]" placeholder="Coût" style="flex:1;" />
+            <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">Suppr.</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="addPartRow()">Ajouter pièce</button>
+      </fieldset>
+      <!-- Main d'œuvre -->
+      <fieldset style="margin-bottom:1rem;">
+        <legend>Main d'œuvre</legend>
+        <label>Description:<br><textarea name="laborDescription" rows="2" style="width:100%;"></textarea></label><br>
+        <label>Heures estimées:<br><input type="number" step="0.1" name="laborHours" style="width:100px;" /></label><br>
+        <label>Taux horaire:<br><input type="number" step="0.01" name="laborRate" style="width:100px;" /></label>
+      </fieldset>
+      <!-- Estimations et total -->
+      <fieldset style="margin-bottom:1rem;">
+        <legend>Estimations</legend>
+        <label>Sous-total pièces:<br><input type="text" name="subtotalParts" readonly style="width:120px;" /></label><br>
+        <label>Coût main d'œuvre:<br><input type="text" name="subtotalLabor" readonly style="width:120px;" /></label><br>
+        <label>Total HT:<br><input type="text" name="totalHT" readonly style="width:120px;" /></label><br>
+        <label>TVA (%):<br><input type="number" name="vatRate" value="20" style="width:80px;" /></label><br>
+        <label>Total TTC:<br><input type="text" name="totalTTC" readonly style="width:120px;" /></label>
+      </fieldset>
+      <!-- Validation -->
+      <fieldset>
+        <button type="submit" class="btn btn-success">Enregistrer OR</button>
+        <button type="button" class="btn btn-secondary" id="btn-cancel-create-or">Annuler</button>
+      </fieldset>
+    </form>
+  </div>
+</div>
+
+<style>
+  /* Styles basiques pour le modal */
+  .modal-overlay { display: none; }
+  .modal-overlay.show { display: flex; }
+</style>
+
+<script>
+  // Init F2 OR buttons et modal
+  document.addEventListener('DOMContentLoaded', function() {
+    var createBtn = document.getElementById('btn-create-or');
+    var modal = document.getElementById('modal-create-or');
+    var closeBtn = document.getElementById('modal-close-create-or');
+    var cancelBtn = document.getElementById('btn-cancel-create-or');
+    var form = document.getElementById('form-create-or');
+
+    createBtn.addEventListener('click', openCreateOrModal);
+    closeBtn.addEventListener('click', closeCreateOrModal);
+    cancelBtn.addEventListener('click', closeCreateOrModal);
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      // TODO: valider et envoyer les données
+      console.log('OR enregistré', new FormData(form));
+      closeCreateOrModal();
+    });
+  });
+
+  function openCreateOrModal() {
+    document.getElementById('modal-create-or').classList.add('show');
+  }
+  function closeCreateOrModal() {
+    document.getElementById('modal-create-or').classList.remove('show');
+  }
+
+  function addPartRow() {
+    var container = document.getElementById('parts-list');
+    var row = document.createElement('div');
+    row.className = 'part-item';
+    row.style = 'display:flex; gap:0.5rem; margin-bottom:0.5rem;';
+    row.innerHTML = '<input type="text" name="partName[]" placeholder="Nom pièce" style="flex:2;" />'
+      + '<input type="number" name="partQty[]" placeholder="Qté" style="flex:1;" />'
+      + '<input type="number" step="0.01" name="partCost[]" placeholder="Coût" style="flex:1;" />'
+      + '<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">Suppr.</button>';
+    container.appendChild(row);
+  }
+</script>
 
       <!-- NOUVEAUX BLOCS POUR LA RECHERCHE DE FACTURE -->
       <div id="recherche-facture-form" style="display: none;">
@@ -514,7 +629,7 @@
               <button onclick="ajouterLignePiece()">Ajouter une pièce</button>
               <button onclick="ajouterLigneMainDoeuvre()">Ajouter Main d'oeuvre</button>
           </div>
-
+       
           <div class="facture-notes-section">
               <h3>Informations complémentaires</h3>
               <textarea id="facture-infos-complementaires" rows="4"></textarea>
@@ -725,9 +840,146 @@
           </div>
       </div>
 
-      <div id="accueil-section">
-        <h2>Bienvenue dans l'application IA Gestion</h2>
-        <p id="date-heure-accueil" style="font-size: 1.2em; color: #333;"></p>
+      <!-- NOUVEAU: Interface Technicien -->
+      <div id="interface-technicien" style="display: none;">
+        <h2>Gestion des Techniciens</h2>
+        <button onclick="afficherFormulaireNouveauTechnicien()">Nouveau Technicien</button>
+        <button onclick="afficherListeTechniciens()">Liste des Techniciens</button>
+      </div>
+
+      <!-- NOUVEAU: Formulaire pour un nouveau technicien -->
+      <div id="nouveau-technicien-form" style="display: none;">
+        <h2>Ajouter un nouveau technicien</h2>
+        <div class="form-group"><label for="tech-nom">Nom</label><input type="text" id="tech-nom"></div>
+        <div class="form-group"><label for="tech-prenom">Prénom</label><input type="text" id="tech-prenom"></div>
+        <div class="form-group"><label for="tech-adresse">Adresse</label><input type="text" id="tech-adresse"></div>
+        <div class="form-group"><label for="tech-code-postal">Code Postal</label><input type="text" id="tech-code-postal"></div>
+        <div class="form-group"><label for="tech-ville">Ville</label><input type="text" id="tech-ville"></div>
+        <div class="form-group"><label for="tech-date-naissance">Date de naissance</label><input type="date" id="tech-date-naissance"></div>
+        <div class="form-group"><label for="tech-email">Email</label><input type="email" id="tech-email"></div>
+        <div class="form-group"><label for="tech-telephone">Téléphone</label><input type="text" id="tech-telephone"></div>
+        <div class="form-group"><label for="tech-numero">Numéro de technicien</label><input type="text" id="tech-numero"></div>
+        <button onclick="ajouterTechnicien()">Sauvegarder</button>
+      </div>
+
+<div
+  id="accueil-section"
+  class="section"
+>
+  <h2>Bienvenue dans l'application IA Carrossery</h2>
+  <p id="date-heure-accueil" style="font-size:1.2em; color:#333;"></p>
+
+  <!-- Conteneur centré pour votre image ou canvas -->
+  <div
+    style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      max-width: 800px;
+      margin: 1rem auto;
+    "
+  >
+    <!-- Par exemple : -->
+    <canvas
+      id="canvas-accueil"
+      style="
+        display: block;
+        width: 70%;
+        max-width: 500px;
+        height: auto;
+        cursor: pointer;
+      "
+    ></canvas>
+  </div>
+</div>
+        
+  
+>
+  <canvas
+    id="canvas-accueil"
+    style="
+      display: block;
+      width: 100%;       /* ajustez la taille souhaitée */
+      max-width: 51000px; /* ou votre max */
+      height: auto;
+      cursor: pointer;
+      margin: 0 auto;   /* redondant avec flex mais sans mal */
+    "
+  ></canvas>
+</div>
+
+
+<script>
+  const canvas = document.getElementById('canvas-accueil');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.src = 'drawable/logo.png';
+
+  // Paramètres
+  const PARTICLE_COUNT = 200;
+  let particles = [];
+  let w, h;
+
+  // À l’image chargée, adapte le canvas et dessine
+  img.onload = () => {
+    w = canvas.width = img.width;
+    h = canvas.height = img.height;
+    drawImage();
+  };
+
+  function drawImage() {
+    ctx.clearRect(0,0,w,h);
+    ctx.drawImage(img, 0, 0);
+  }
+
+  // Crée les particules à partir des pixels de l’image
+  function createParticles() {
+    particles = [];
+    const imageData = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const x = Math.random() * w;
+      const y = Math.random() * h;
+      const idx = ((Math.floor(y)*w + Math.floor(x)) * 4);
+      const color = `rgba(${imageData[idx]},${imageData[idx+1]},${imageData[idx+2]},${imageData[idx+3]/255})`;
+      particles.push({
+        x, y,
+        vx: (Math.random()-0.5)*10,
+        vy: (Math.random()-0.5)*10,
+        size: Math.random()*4 + 2,
+        color
+      });
+    }
+  }
+
+  // Animation d’éclatement
+  function animate() {
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2;        // gravité
+      p.vx *= 0.98;       // friction
+      p.vy *= 0.98;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+    });
+    // stop quand toutes hors écran
+    if (particles.some(p => p.x > 0 && p.x < w && p.y > 0 && p.y < h)) {
+      requestAnimationFrame(animate);
+    } else {
+      drawImage();  // remet l’image
+    }
+  }
+
+  // Survol : recharge et lance l’éclatement
+  canvas.addEventListener('mouseenter', () => {
+    drawImage();
+    createParticles();
+    animate();
+  });
+</script>
       </div>
     </div>
 
@@ -743,7 +995,7 @@
     function hideAllContentPanels() {
         const panelIds = [
             'accueil-section', 'client-options', 'nouveau-client-form', 'nouveau-piece-form', 'recherche-piece-form', 'resultats-recherche-pieces',
-            'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre',
+            'facture-options', 'nouvelle-facture-form', 'recherche-facture-form', 'resultats-recherche-factures', 'interface-maindoeuvre', 'interface-technicien', 'nouveau-technicien-form',
             'nouveau-maindoeuvre-form', 'recherche-maindoeuvre-form', 'resultats-recherche-maindoeuvre', 'interface-planning', 'interface-fournisseurs',
             'recherche-client-form', 'resultatsRecherche', 'interface-pieces', 'interface-options', 'interface-comptabilite' // AJOUTÉ interface-fournisseurs
         ];
@@ -2214,9 +2466,51 @@
 
     // --- NOUVEAU: Fonctions pour les onglets non implémentés ---
     function afficherInterfaceNotifications() { alert("Section 'Notifications' non implémentée."); }
-    function afficherInterfaceParametre() { alert("Section 'Paramètre' non implémentée."); }
+    function afficherInterfaceParametre() { showPanel('interface-technicien'); }
+    function afficherFormulaireNouveauTechnicien() { showPanel('nouveau-technicien-form'); }
+    function afficherListeTechniciens() { alert("Fonctionnalité 'Liste des Techniciens' non implémentée."); }
+    function ajouterTechnicien() {
+        const technicienData = {
+            nom: document.getElementById('tech-nom').value.trim(),
+            prenom: document.getElementById('tech-prenom').value.trim(),
+            adresse: document.getElementById('tech-adresse').value.trim(),
+            code_postal: document.getElementById('tech-code-postal').value.trim(),
+            ville: document.getElementById('tech-ville').value.trim(),
+            date_naissance: document.getElementById('tech-date-naissance').value,
+            email: document.getElementById('tech-email').value.trim(),
+            telephone: document.getElementById('tech-telephone').value.trim(),
+            numero_technicien: document.getElementById('tech-numero').value.trim()
+        };
 
-    function afficherInterfaceOptions() { showPanel('interface-options'); } // F8 - Options
+        // Validation côté client
+        if (!technicienData.nom || !technicienData.prenom || !technicienData.numero_technicien) {
+            alert("Les champs Nom, Prénom et Numéro de technicien sont obligatoires.");
+            return;
+        }
+
+        fetch('/api/techniciens', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(technicienData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || 'Une erreur est survenue.'); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message || "Technicien ajouté avec succès !");
+            document.getElementById('nouveau-technicien-form').querySelectorAll('input').forEach(input => input.value = '');
+            afficherInterfaceParametre(); // Revenir au menu technicien
+        })
+        .catch(error => {
+            console.error("Erreur lors de l'ajout du technicien:", error);
+            alert(`Erreur: ${error.message}`);
+        });
+    }
+
+    function afficherInterfaceOptions() { showPanel('interface-options'); } // F11 - Option
 
     // --- GESTION DES RACCOURCIS CLAVIER (F1, F2, etc.) ---
     document.addEventListener('keydown', function(event) {
