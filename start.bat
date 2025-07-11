@@ -1,13 +1,16 @@
 @echo off
-REM Ce script lance le serveur Python en arriere-plan et ouvre le navigateur.
+REM -------------------------------------------------------------------
+REM start.bat — Démarrage du serveur FastAPI pour IA_Gestion1.0
+REM -------------------------------------------------------------------
 
-echo Lancement du serveur Flask...
-REM Utilisation de "start /B" pour lancer le processus en arriere-plan dans la meme fenetre,
-REM et "pythonw.exe" pour qu'il n'ait pas de console. La combinaison le rend invisible.
-start /B "" pythonw.exe app.py
+REM 1. Active l’environnement Conda nommé « tf310 »
+call conda activate tf310
 
-echo Attente de 2 secondes pour que le serveur demarre...
-timeout /t 2 /nobreak > nul
+REM 2. Se positionne dans le dossier contenant ce script
+pushd %~dp0
 
-echo Lancement de l'application dans le navigateur...
-start http://127.0.0.1:8000/
+REM 3. Démarre Uvicorn sur le host et port souhaités
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+
+REM 4. Restaure le répertoire initial (optionnel)
+popd

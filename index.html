@@ -411,6 +411,13 @@
 
   </div>
 
+  <div id="confirmation-modal" class="modal-overlay" style="display:none; align-items:center; justify-content:center;">
+    <div class="modal-content" style="max-width:300px; text-align:center; background:white; padding:1rem; border-radius:8px;">
+      <p id="confirmation-message" style="margin-bottom:1rem;"></p>
+      <button onclick="hideConfirmation()" style="padding:8px 16px; cursor:pointer;">OK</button>
+    </div>
+  </div>
+
     <div class="main">
     <div class="content">
         <!-- MODIFIÉ: Contenu de l'interface de comptabilité -->
@@ -513,6 +520,45 @@
 </style>
 
 <script>
+
+    function showConfirmation(msg) {
+      document.getElementById('confirmation-message').innerText = msg;
+      document.getElementById('confirmation-modal').style.display = 'flex';
+    }
+    function hideConfirmation() {
+      document.getElementById('confirmation-modal').style.display = 'none';
+    }
+    window.alert = showConfirmation;
+
+    // … (vos autres fonctions existantes) …
+
+    // Placez saveClient ici, avec les autres fonctions JS :
+    async function saveClient(clientData) {
+      const res = await fetch('/api/clients/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientData)
+      });
+      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
+      const saved = await res.json();
+      // **ICI** on ajoute la popup
+      alert(`Client « ${saved.nom} » ajouté avec succès !`);
+      return saved;
+    }
+
+    async function saveExperts(expertsData) {
+      const res = await fetch('/api/experts/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expertsData)
+      });
+      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
+      const saved = await res.json();
+      // **ICI** on ajoute la popup
+      alert(`Experts « ${saved.nom} » ajouté avec succès !`);
+      return saved;
+    }
+
   // Init F2 OR buttons et modal
   document.addEventListener('DOMContentLoaded', function() {
     var createBtn = document.getElementById('btn-create-or');
